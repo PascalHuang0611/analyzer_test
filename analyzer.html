@@ -42,7 +42,7 @@
                 <h1 class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
                     Lucky Coins 分析儀表板
                 </h1>
-                <p class="text-gray-400 mt-2">完全在地端執行的注單數據透視工具</p>
+                <p class="text-gray-400 mt-2">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
             <div>
                 <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2">
@@ -71,18 +71,19 @@
                 <!-- Controls -->
                 <div class="glass rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="font-semibold text-indigo-300">高價值玩家 (Top {{ topPercent }}%)</label>
-                            <span class="text-gray-400">依總投注額分位數</span>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="font-semibold text-indigo-300">高價值玩家 (平均押注 >=)</label>
+                            <input type="number" v-model.number="highBetThreshold" min="1" class="w-24 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-right focus:border-indigo-500 focus:outline-none">
                         </div>
-                        <input type="range" v-model.number="topPercent" min="5" max="50" step="5" class="w-full">
+                        <input type="range" v-model.number="highBetThreshold" min="1" max="200" step="1" class="w-full mt-2">
                     </div>
                     <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="font-semibold text-cyan-300">中階玩家 (Next {{ midPercent }}%)</label>
-                            <span class="text-gray-400">剩下的 {{ 100 - topPercent - midPercent }}% 為休閒玩家</span>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="font-semibold text-cyan-300">中階玩家 (平均押注 >=)</label>
+                            <input type="number" v-model.number="midBetThreshold" min="1" class="w-24 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-right focus:border-cyan-500 focus:outline-none">
                         </div>
-                        <input type="range" v-model.number="midPercent" min="10" max="80" step="5" class="w-full">
+                        <input type="range" v-model.number="midBetThreshold" min="1" max="100" step="1" class="w-full mt-2">
+                        <span class="text-xs text-gray-400 mt-1 block">平均押注低於 {{ midBetThreshold }} 為休閒玩家</span>
                     </div>
                 </div>
 
@@ -94,11 +95,11 @@
                             {{ seg }}
                         </h3>
                         <div class="text-3xl font-extrabold mb-1">{{ analyzedData[seg].headcount }} <span class="text-sm font-normal text-gray-400">人</span></div>
-                        <div class="text-sm text-gray-400 mb-4">平均下注金額: <span class="text-white font-bold">{{ analyzedData[seg].avgBet.toFixed(2) }}</span></div>
+                        <div class="text-sm text-gray-400 mb-4">群體平均下注: <span class="text-white font-bold">{{ analyzedData[seg].avgBet.toFixed(2) }}</span></div>
                         
                         <div class="space-y-2 mt-6">
                             <div class="flex justify-between text-sm">
-                                <span class="text-gray-400">勝率 (Win Rate)</span>
+                                <span class="text-gray-400">中獎率 (Hit Rate)</span>
                                 <span class="font-bold text-green-400">{{ analyzedData[seg].winRate.toFixed(2) }}%</span>
                             </div>
                             <div class="flex justify-between text-sm">
@@ -157,14 +158,18 @@
 
         createApp({
             setup() {
-                const topPercent = ref(20);
-                const midPercent = ref(40);
+                const highBetThreshold = ref(50);
+                const midBetThreshold = ref(20);
                 const isProcessing = ref(false);
                 const rawData = ref([]);
 
-                // 確保數值合理
-                watch(topPercent, (val) => { if (val + midPercent.value > 95) midPercent.value = 95 - val; });
-                watch(midPercent, (val) => { if (val + topPercent.value > 95) topPercent.value = 95 - val; });
+                // 確保數值合理 (高 > 中)
+                watch(highBetThreshold, (val) => { 
+                    if (val <= midBetThreshold.value) midBetThreshold.value = Math.max(1, val - 1); 
+                });
+                watch(midBetThreshold, (val) => { 
+                    if (val >= highBetThreshold.value) highBetThreshold.value = val + 1; 
+                });
 
                 const handleFileSelect = (event) => {
                     const files = event.target.files;
@@ -206,7 +211,6 @@
                             cleaned.push({
                                 account: row.Account,
                                 billTime: new Date(row['Bill Time']).getTime(),
-                                turnover: parseFloat(row.Turnover) || 0,
                                 betAmount: parseFloat(row['Bet Amount']) || 0,
                                 multiplier: parseFloat(row.Multiplier) || 0,
                                 betPlace: row['Bet Place'] || ""
@@ -228,39 +232,20 @@
                     if (rawData.value.length === 0) return null;
                     const data = rawData.value;
                     
-                    // 1. 計算每個 Account 的總 Turnover
-                    const accountTurnovers = {};
+                    // 1. 計算每個 Account 的平均押注
+                    const accountStats = {};
                     data.forEach(row => {
-                        if(!accountTurnovers[row.account]) accountTurnovers[row.account] = 0;
-                        accountTurnovers[row.account] += row.turnover;
+                        if(!accountStats[row.account]) accountStats[row.account] = { totalBet: 0, count: 0 };
+                        accountStats[row.account].totalBet += row.betAmount;
+                        accountStats[row.account].count++;
                     });
                     
-                    const sortedAccounts = Object.keys(accountTurnovers)
-                        .map(acc => ({acc, to: accountTurnovers[acc]}))
-                        .sort((a, b) => a.to - b.to); // 由小到大
-                        
-                    const turnovers = sortedAccounts.map(a => a.to);
-                    
-                    // 百分位數計算
-                    const getQuantile = (arr, q) => {
-                        const pos = (arr.length - 1) * q;
-                        const base = Math.floor(pos);
-                        const rest = pos - base;
-                        if (arr[base + 1] !== undefined) {
-                            return arr[base] + rest * (arr[base + 1] - arr[base]);
-                        } else {
-                            return arr[base];
-                        }
-                    };
-                    
-                    const qHigh = getQuantile(turnovers, 1 - (topPercent.value / 100));
-                    const qMid = getQuantile(turnovers, 1 - ((topPercent.value + midPercent.value) / 100));
-
                     const segmentMap = {};
-                    sortedAccounts.forEach(item => {
-                        if (item.to >= qHigh) segmentMap[item.acc] = '高價值玩家';
-                        else if (item.to >= qMid) segmentMap[item.acc] = '中階玩家';
-                        else segmentMap[item.acc] = '休閒玩家';
+                    Object.keys(accountStats).forEach(acc => {
+                        const avgBet = accountStats[acc].totalBet / accountStats[acc].count;
+                        if (avgBet >= highBetThreshold.value) segmentMap[acc] = '高價值玩家';
+                        else if (avgBet >= midBetThreshold.value) segmentMap[acc] = '中階玩家';
+                        else segmentMap[acc] = '休閒玩家';
                     });
 
                     // 2. 初始化統計物件
@@ -373,7 +358,7 @@
                     return result;
                 });
 
-                return { topPercent, midPercent, isProcessing, handleFileSelect, analyzedData };
+                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData };
             }
         }).mount('#app');
     </script>
