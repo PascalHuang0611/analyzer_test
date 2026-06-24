@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Coins - 注單深度分析工具 v1.3</title>
+    <title>Lucky Coins - 注單深度分析工具 v1.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -51,7 +51,7 @@
             <div>
                 <h1
                     class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
-                    Lucky Coins 分析儀表板 <span class="text-xl text-cyan-300">v1.3</span>
+                    Lucky Coins 分析儀表板 <span class="text-xl text-cyan-300">v1.4</span>
                 </h1>
                 <p class="text-gray-400 mt-2">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -453,6 +453,16 @@
                                     </svg>
                                 </button>
                             </div>
+                            <div class="px-6 py-3 border-b border-white/10 bg-black/40 flex flex-wrap gap-4 items-center shrink-0">
+                                <span class="text-sm text-gray-300">顯示範圍 (局數):</span>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" v-model.number="chartStart" class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center" min="1" :max="chartEnd">
+                                    <span class="text-sm text-gray-400">至</span>
+                                    <input type="number" v-model.number="chartEnd" class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center" :min="chartStart" :max="chartMax">
+                                </div>
+                                <span class="text-sm text-gray-400">/ 總共 {{ chartMax }} 局</span>
+                                <button @click="renderChart" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm text-white transition-colors shadow-lg">更新圖表</button>
+                            </div>
                             <div class="p-6 flex-1 w-full relative">
                                 <canvas id="playerChart"></canvas>
                             </div>
@@ -482,6 +492,11 @@
                 const showChartModal = ref(false);
                 let chartInstance = null;
                 const displayCount = ref(50);
+                
+                const chartStart = ref(1);
+                const chartEnd = ref(1);
+                const chartMax = ref(1);
+                let chartCache = null;
 
                 const handleTableScroll = (e) => {
                     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -820,129 +835,145 @@
                     if (!selectedPlayer.value) return;
                     showChartModal.value = true;
 
+                    // 過濾玩家的注單 (rawData 已經依據 account 跟時間排序)
+                    const playerBets = rawData.value.filter(row => row.account === selectedPlayer.value.account);
+
+                    const labels = [];
+                    const betData = [];
+                    const rtpData = [];
+                    const pointStyles = [];
+                    const pointRadii = [];
+                    const pointColors = [];
+
+                    let cumBet = 0;
+                    let cumWin = 0;
+                    const buyBonusAmounts = [85, 170, 850, 1700];
+
+                    playerBets.forEach((row, index) => {
+                        labels.push(`第${index + 1}局`);
+                        betData.push(String(row.betAmount));
+
+                        cumBet += row.betAmount;
+                        cumWin += (row.betAmount * row.multiplier);
+
+                        const rtp = cumBet > 0 ? (cumWin / cumBet) * 100 : 0;
+                        rtpData.push(rtp);
+
+                        if (buyBonusAmounts.includes(row.betAmount)) {
+                            pointStyles.push('star');
+                            pointRadii.push(8);
+                            pointColors.push('#d946ef'); // fuchsia-500
+                        } else {
+                            pointStyles.push('circle');
+                            pointRadii.push(2);
+                            pointColors.push('#38bdf8'); // sky-400
+                        }
+                    });
+
+                    chartCache = { labels, betData, rtpData, pointStyles, pointRadii, pointColors };
+                    chartMax.value = playerBets.length;
+                    chartStart.value = 1;
+                    chartEnd.value = playerBets.length;
+
                     setTimeout(() => {
-                        const ctx = document.getElementById('playerChart');
-                        if (!ctx) return;
+                        renderChart();
+                    }, 50); // delay to let DOM render
+                };
 
-                        // 過濾玩家的注單 (rawData 已經依據 account 跟時間排序)
-                        const playerBets = rawData.value.filter(row => row.account === selectedPlayer.value.account);
+                const renderChart = () => {
+                    const ctx = document.getElementById('playerChart');
+                    if (!ctx || !chartCache) return;
 
-                        const labels = [];
-                        const betData = [];
-                        const rtpData = [];
-                        const pointStyles = [];
-                        const pointRadii = [];
-                        const pointColors = [];
+                    let sIdx = Math.max(0, chartStart.value - 1);
+                    let eIdx = Math.min(chartMax.value, chartEnd.value);
+                    if (sIdx >= eIdx) sIdx = 0; // fallback
 
-                        let cumBet = 0;
-                        let cumWin = 0;
-                        const buyBonusAmounts = [85, 170, 850, 1700];
+                    const sliceData = (arr) => arr.slice(sIdx, eIdx);
+                    const currentBetData = sliceData(chartCache.betData);
 
-                        playerBets.forEach((row, index) => {
-                            labels.push(`第${index + 1}局`);
-                            betData.push(String(row.betAmount));
+                    if (chartInstance) chartInstance.destroy();
 
-                            cumBet += row.betAmount;
-                            cumWin += (row.betAmount * row.multiplier);
-
-                            const rtp = cumBet > 0 ? (cumWin / cumBet) * 100 : 0;
-                            rtpData.push(rtp);
-
-                            if (buyBonusAmounts.includes(row.betAmount)) {
-                                pointStyles.push('star');
-                                pointRadii.push(8);
-                                pointColors.push('#d946ef'); // fuchsia-500
-                            } else {
-                                pointStyles.push('circle');
-                                pointRadii.push(2);
-                                pointColors.push('#38bdf8'); // sky-400
-                            }
-                        });
-
-                        if (chartInstance) chartInstance.destroy();
-
-                        chartInstance = new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: labels,
-                                datasets: [
-                                    {
-                                        label: '累積 RTP (%)',
-                                        data: rtpData,
-                                        type: 'line',
-                                        yAxisID: 'yRTP',
-                                        borderColor: '#38bdf8',
-                                        borderWidth: 2,
-                                        pointStyle: pointStyles,
-                                        pointRadius: pointRadii,
-                                        pointBackgroundColor: pointColors,
-                                        pointBorderColor: pointColors,
-                                        tension: 0.4, // 更柔和的貝茲曲線
-                                        fill: true,
-                                        backgroundColor: 'rgba(56, 189, 248, 0.15)', // 淺藍色半透明漸層底色
-                                        order: 1
-                                    },
-                                    {
-                                        label: '單局押注金額',
-                                        data: betData,
-                                        type: 'bar',
-                                        yAxisID: 'yBet',
-                                        backgroundColor: 'rgba(99, 102, 241, 0.4)',
-                                        borderColor: '#6366f1',
-                                        borderWidth: 1,
-                                        order: 2
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                interaction: { mode: 'index', intersect: false },
-                                scales: {
-                                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                                    yRTP: {
-                                        type: 'linear', position: 'left',
-                                        title: { display: true, text: 'RTP %', color: '#38bdf8' },
-                                        ticks: { color: '#38bdf8', callback: function (val) { return val + '%'; } },
-                                        grid: { color: 'rgba(255,255,255,0.1)' }
-                                    },
-                                    yBet: {
-                                        type: 'category',
-                                        labels: ['0', '1', '5', '10', '50', '85', '100', '170', '500', '850', '1000', '1700'],
-                                        position: 'right',
-                                        reverse: true,
-                                        title: { display: true, text: 'Bet Amount', color: '#818cf8' },
-                                        ticks: { color: '#818cf8' },
-                                        grid: { drawOnChartArea: false }
-                                    }
+                    chartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: sliceData(chartCache.labels),
+                            datasets: [
+                                {
+                                    label: '累積 RTP (%)',
+                                    data: sliceData(chartCache.rtpData),
+                                    type: 'line',
+                                    yAxisID: 'yRTP',
+                                    borderColor: '#38bdf8',
+                                    borderWidth: 2,
+                                    pointStyle: sliceData(chartCache.pointStyles),
+                                    pointRadius: sliceData(chartCache.pointRadii),
+                                    pointBackgroundColor: sliceData(chartCache.pointColors),
+                                    pointBorderColor: sliceData(chartCache.pointColors),
+                                    tension: 0.4, // 更柔和的貝茲曲線
+                                    fill: true,
+                                    backgroundColor: 'rgba(56, 189, 248, 0.15)', // 淺藍色半透明漸層底色
+                                    order: 1
                                 },
-                                plugins: {
-                                    legend: { labels: { color: '#e2e8f0' } },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function (context) {
-                                                let label = context.dataset.label || '';
-                                                if (label) label += ': ';
-                                                if (context.dataset.yAxisID === 'yRTP') {
-                                                    label += context.parsed.y.toFixed(2) + '%';
-                                                } else {
-                                                    label += context.raw; // 對於 category 軸，應使用原始字串值
-                                                }
-
-                                                // 判斷是否為購買特色 (根據該局的押注額)
-                                                const amt = Number(betData[context.dataIndex]);
-                                                if ([85, 170, 850, 1700].includes(amt)) {
-                                                    label += ' (購買 Bonus)';
-                                                }
-
-                                                return label;
+                                {
+                                    label: '單局押注金額',
+                                    data: currentBetData,
+                                    type: 'bar',
+                                    yAxisID: 'yBet',
+                                    backgroundColor: 'rgba(99, 102, 241, 0.4)',
+                                    borderColor: '#6366f1',
+                                    borderWidth: 1,
+                                    order: 2
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                yRTP: {
+                                    type: 'linear', position: 'left',
+                                    title: { display: true, text: 'RTP %', color: '#38bdf8' },
+                                    ticks: { color: '#38bdf8', callback: function (val) { return val + '%'; } },
+                                    grid: { color: 'rgba(255,255,255,0.1)' }
+                                },
+                                yBet: {
+                                    type: 'category',
+                                    labels: ['0', '1', '5', '10', '50', '85', '100', '170', '500', '850', '1000', '1700'],
+                                    position: 'right',
+                                    reverse: true,
+                                    title: { display: true, text: 'Bet Amount', color: '#818cf8' },
+                                    ticks: { color: '#818cf8' },
+                                    grid: { drawOnChartArea: false }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#e2e8f0' } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) label += ': ';
+                                            if (context.dataset.yAxisID === 'yRTP') {
+                                                label += context.parsed.y.toFixed(2) + '%';
+                                            } else {
+                                                label += context.raw; // 對於 category 軸，應使用原始字串值
                                             }
+
+                                            // 判斷是否為購買特色 (根據該局的押注額)
+                                            const amt = Number(currentBetData[context.dataIndex]);
+                                            if ([85, 170, 850, 1700].includes(amt)) {
+                                                label += ' (購買 Bonus)';
+                                            }
+
+                                            return label;
                                         }
                                     }
                                 }
                             }
-                        });
-                    }, 50); // delay to let DOM render
+                        }
+                    });
                 };
 
                 const closeChart = () => {
@@ -1050,7 +1081,7 @@
                     document.body.removeChild(link);
                 };
 
-                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, exportToMarkdown, displayCount, handleTableScroll };
+                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax };
             }
         }).mount('#app');
     </script>
