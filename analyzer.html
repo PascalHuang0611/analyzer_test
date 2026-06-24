@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Coins - 注單深度分析工具 v1.4</title>
+    <title>Lucky Coins - 注單深度分析工具 v1.4.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -51,7 +51,7 @@
             <div>
                 <h1
                     class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
-                    Lucky Coins 分析儀表板 <span class="text-xl text-cyan-300">v1.4</span>
+                    Lucky Coins 分析儀表板 <span class="text-xl text-cyan-300">v1.4.1</span>
                 </h1>
                 <p class="text-gray-400 mt-2">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -479,8 +479,11 @@
 
         createApp({
             setup() {
-                const highBetThreshold = ref(50);
-                const midBetThreshold = ref(20);
+                // 從 localStorage 讀取玩家自訂的閾值，若無則使用預設值
+                const savedHigh = localStorage.getItem('luckyCoins_highBet');
+                const savedMid = localStorage.getItem('luckyCoins_midBet');
+                const highBetThreshold = ref(savedHigh ? Number(savedHigh) : 50);
+                const midBetThreshold = ref(savedMid ? Number(savedMid) : 20);
                 const isProcessing = ref(false);
                 const rawData = ref([]);
                 const includeBuyBonus = ref(true);
@@ -525,12 +528,14 @@
                     }
                 });
 
-                // 確保數值合理 (高 > 中)
+                // 確保數值合理 (高 > 中) 並自動存入 localStorage
                 watch(highBetThreshold, (val) => {
                     if (val <= midBetThreshold.value) midBetThreshold.value = Math.max(1, val - 1);
+                    localStorage.setItem('luckyCoins_highBet', val);
                 });
                 watch(midBetThreshold, (val) => {
                     if (val >= highBetThreshold.value) highBetThreshold.value = val + 1;
+                    localStorage.setItem('luckyCoins_midBet', val);
                 });
 
                 const handleFileSelect = (event) => {
