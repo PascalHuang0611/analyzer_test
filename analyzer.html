@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Coins - 注單深度分析工具 v1.4.2</title>
+    <title>Lucky Coins - 注單深度分析工具 v1.4.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -135,7 +135,7 @@
                         <span style="font-family: 'Orbitron', sans-serif;">Lucky Coins</span>
                         <span style="font-family: 'Noto Sans TC', sans-serif;" class="text-3xl ml-1">分析儀表板</span>
                     </div>
-                    <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold" style="font-family: 'Inter', sans-serif;">v1.4.2</span>
+                    <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold" style="font-family: 'Inter', sans-serif;">v1.4.3</span>
                 </h1>
                 <p class="animate-subtitle text-gray-400 mt-3">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -398,9 +398,18 @@
 
                 <!-- Block 5: Top 10 Players -->
                 <div class="glass rounded-2xl overflow-hidden mb-6">
-                    <div class="p-6 border-b border-white/10">
-                        <h3 class="text-xl font-bold">全站投注排行榜</h3>
-                        <p class="text-sm text-gray-400 mt-1">支援向下滾動檢視所有玩家。匯出 Markdown 時僅會匯出當下排序的前 10 名。</p>
+                    <div class="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-xl font-bold">全站投注排行榜</h3>
+                            <p class="text-sm text-gray-400 mt-1">支援向下滾動檢視所有玩家。匯出 Markdown 時僅會匯出當下顯示列表的前 10 名。</p>
+                        </div>
+                        <div class="relative w-full md:w-64">
+                            <input type="text" v-model="searchQuery" placeholder="輸入 ACCID 搜尋..." 
+                                class="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-2 pl-10 focus:border-indigo-500 focus:outline-none transition-colors">
+                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                     </div>
                     <div class="overflow-x-auto overflow-y-auto max-h-[600px]" @scroll="handleTableScroll">
                         <table class="w-full text-center border-collapse">
@@ -426,7 +435,7 @@
                                 </tr>
                             </thead>
                             <tbody class="text-sm">
-                                <tr v-for="(p, index) in analyzedData.sortedPlayers.slice(0, displayCount)"
+                                <tr v-for="(p, index) in filteredAndSortedPlayers.slice(0, displayCount)"
                                     :key="p.account" @click="selectedPlayer = p"
                                     class="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
                                     <td class="p-4 font-bold whitespace-nowrap text-cyan-400 group-hover:text-cyan-300">
@@ -575,6 +584,7 @@
                 const selectedPlayer = ref(null);
                 const sortKey = ref('bets');
                 const sortOrder = ref('desc');
+                const searchQuery = ref('');
 
                 const showChartModal = ref(false);
                 let chartInstance = null;
@@ -620,6 +630,21 @@
                 watch(midBetThreshold, (val) => {
                     if (val >= highBetThreshold.value) highBetThreshold.value = val + 1;
                     localStorage.setItem('luckyCoins_midBet', val);
+                });
+
+                const filteredAndSortedPlayers = computed(() => {
+                    if (!analyzedData.value || !analyzedData.value.allPlayers) return [];
+                    let arr = analyzedData.value.allPlayers;
+                    if (searchQuery.value) {
+                        const q = searchQuery.value.toLowerCase();
+                        arr = arr.filter(p => p.account.toLowerCase().includes(q));
+                    }
+                    return [...arr].sort((a, b) => {
+                        let valA = a[sortKey.value];
+                        let valB = b[sortKey.value];
+                        if (sortOrder.value === 'desc') return valB - valA;
+                        return valA - valB;
+                    });
                 });
 
                 const handleFileSelect = (event) => {
@@ -901,21 +926,14 @@
                         };
                     }
 
-                    // 5. Top 10 players
+                    // 5. Top 10 players 準備資料但不排序 (交由 filteredAndSortedPlayers 處理)
                     let playersArr = Object.values(userStats).map(p => ({
                         ...p,
                         avgBet: p.bets > 0 ? p.totalBetAmount / p.bets : 0,
                         ggr: p.totalBetAmount - p.totalWinAmount
                     }));
 
-                    playersArr.sort((a, b) => {
-                        let valA = a[sortKey.value];
-                        let valB = b[sortKey.value];
-                        if (sortOrder.value === 'desc') return valB - valA;
-                        return valA - valB;
-                    });
-
-                    result.sortedPlayers = playersArr;
+                    result.allPlayers = playersArr;
 
                     return result;
                 });
@@ -1154,7 +1172,7 @@
                     md += '## 5. 全站投注排行榜 (Top 10)\n\n';
                     md += '| 玩家 ID | 遊玩局數 | 平均下注額 | 總下注額 | GGR | 購買 Bonus 次數 |\n';
                     md += '|---|---|---|---|---|---|\n';
-                    data.sortedPlayers.slice(0, 10).forEach(p => {
+                    filteredAndSortedPlayers.value.slice(0, 10).forEach(p => {
                         md += `| ${p.account} | ${p.bets.toLocaleString()} | ${p.avgBet.toFixed(2)} | ${p.totalBetAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${p.ggr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${p.buyBonusCount.toLocaleString()} |\n`;
                     });
                     md += '\n';
@@ -1170,7 +1188,7 @@
                     document.body.removeChild(link);
                 };
 
-                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax };
+                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers };
             }
         }).mount('#app');
     </script>
