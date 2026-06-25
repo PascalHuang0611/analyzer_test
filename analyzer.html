@@ -232,15 +232,6 @@
 
                         <div class="space-y-2 mt-4">
                             <div class="flex justify-between text-sm">
-                                <span class="text-gray-400">Hit Rate</span>
-                                <span class="font-bold text-green-400">{{ analyzedData[seg].hitRate.toFixed(2)
-                                    }}%</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-400">Win Rate</span>
-                                <span class="font-bold text-blue-400">{{ analyzedData[seg].winRate.toFixed(2) }}%</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">RTP</span>
                                 <span class="font-bold text-white">{{ analyzedData[seg].rtp.toFixed(2) }}%</span>
                             </div>
@@ -257,6 +248,32 @@
                                     {{ analyzedData[seg].ggr.toLocaleString(undefined, {minimumFractionDigits: 2,
                                     maximumFractionDigits: 2}) }}
                                 </span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-400">平均進場餘額</span>
+                                <span class="font-bold text-white">
+                                    {{ analyzedData[seg].avgStartBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                </span>
+                            </div>
+                            
+                            <!-- 剩下四個 Rate -->
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-400">Hit Rate</span>
+                                <span class="font-bold text-green-400">{{ analyzedData[seg].hitRate.toFixed(2) }}%</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-400">Win Rate</span>
+                                <span class="font-bold text-blue-400">{{ analyzedData[seg].winRate.toFixed(2) }}%</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-400">Bonus Rate (含/不含)</span>
+                                <span class="font-bold text-yellow-400">
+                                    {{ analyzedData[seg].bonusRate.toFixed(2) }}% / {{ analyzedData[seg].baseBonusRate.toFixed(2) }}%
+                                </span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-400">Respin Rate</span>
+                                <span class="font-bold text-orange-400">{{ analyzedData[seg].respinRate.toFixed(2) }}%</span>
                             </div>
                         </div>
                     </div>
@@ -317,18 +334,26 @@
                             </thead>
                             <tbody class="text-sm">
                                 <tr v-for="seg in ['高價值玩家', '中階玩家', '休閒玩家']" :key="seg"
-                                    class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                    class="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                                    @click="selectedBonusSegment = seg">
                                     <td class="p-4 font-bold whitespace-nowrap"
                                         :class="{'text-indigo-400': seg==='高價值玩家', 'text-cyan-400': seg==='中階玩家', 'text-gray-400': seg==='休閒玩家'}">
                                         {{ seg }}</td>
                                     <td v-for="item in analyzedData[seg].buyBonusFreqs" :key="item.amount" class="p-4">
-                                        {{ item.count.toLocaleString() }}
+                                        <div class="font-bold">{{ item.count.toLocaleString() }}</div>
+                                        <div v-if="item.count > 0" class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                            RTP: {{ item.rtp.toFixed(2) }}%
+                                        </div>
                                     </td>
                                 </tr>
-                                <tr class="bg-indigo-900/30 font-bold text-white">
+                                <tr class="bg-indigo-900/30 font-bold text-white cursor-pointer hover:bg-indigo-800/40 transition-colors"
+                                    @click="selectedBonusSegment = '總計'">
                                     <td class="p-4 whitespace-nowrap">總和</td>
                                     <td v-for="item in analyzedData['總計'].buyBonusFreqs" :key="item.amount" class="p-4">
-                                        {{ item.count.toLocaleString() }}
+                                        <div class="font-bold">{{ item.count.toLocaleString() }}</div>
+                                        <div v-if="item.count > 0" class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                            RTP: {{ item.rtp.toFixed(2) }}%
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -515,8 +540,12 @@
                                             <tbody class="text-sm text-white">
                                                 <tr>
                                                     <td v-for="amt in [85, 170, 850, 1700]" :key="'buy-val-'+amt"
-                                                        class="p-3 whitespace-nowrap">{{
-                                                        (selectedPlayer.buyBonusFreqs[amt] || 0).toLocaleString() }}
+                                                        class="p-3 whitespace-nowrap">
+                                                        <div v-if="selectedPlayer.buyBonusFreqs[amt] && selectedPlayer.buyBonusFreqs[amt].count > 0">
+                                                            <div>{{ selectedPlayer.buyBonusFreqs[amt].count.toLocaleString() }} 次</div>
+                                                            <div class="text-xs text-gray-400 mt-1">RTP: {{ ((selectedPlayer.buyBonusFreqs[amt].win / (selectedPlayer.buyBonusFreqs[amt].count * amt)) * 100).toFixed(2) }}%</div>
+                                                        </div>
+                                                        <div v-else>0</div>
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -528,7 +557,45 @@
                     </div>
                 </teleport>
 
-                <!-- Level 3: Chart Modal -->
+                <!-- Buy Bonus Segment Details Modal -->
+                <teleport to="body">
+                    <div v-if="selectedBonusSegment && analyzedData" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="selectedBonusSegment = null"></div>
+                        <div class="relative w-full max-w-4xl glass rounded-2xl overflow-hidden shadow-2xl border border-white/20 animate-fade-in">
+                            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-purple-900/20">
+                                <h3 class="text-xl font-bold text-purple-300">購買 Bonus 獎項分配 - {{ selectedBonusSegment }}</h3>
+                                <button @click="selectedBonusSegment = null" class="text-gray-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                                <table class="w-full text-center border-collapse">
+                                    <thead>
+                                        <tr class="table-header text-sm text-purple-200">
+                                            <th class="p-4 font-semibold whitespace-nowrap">購買面額</th>
+                                            <th class="p-4 font-semibold whitespace-nowrap">購買次數</th>
+                                            <th v-for="m in buyBonusMultiplierColumns" :key="'th-'+m" class="p-4 font-semibold whitespace-nowrap">{{ m }}x</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm text-white">
+                                        <tr v-for="item in analyzedData[selectedBonusSegment].buyBonusFreqs" :key="item.amount" class="border-b border-white/5">
+                                            <td class="p-4 font-bold text-purple-300">Buy {{ item.amount }}</td>
+                                            <td class="p-4 font-bold">{{ item.count.toLocaleString() }}</td>
+                                            <td v-for="m in buyBonusMultiplierColumns" :key="'td-'+m" class="p-4 font-medium transition-colors"
+                                                :style="getHeatmapStyle(item.mults[m])">
+                                                {{ item.mults[m] ? item.mults[m].toFixed(2) : '0.00' }}%
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </teleport>
+
+                <!-- Chart Modal -->
                 <teleport to="body">
                     <div v-if="showChartModal" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
                         <div class="absolute inset-0 bg-black/80 backdrop-blur-md" @click="closeChart"></div>
@@ -580,8 +647,9 @@
                 const isProcessing = ref(false);
                 const rawData = ref([]);
                 const includeBuyBonus = ref(true);
-
                 const selectedPlayer = ref(null);
+                const selectedBonusSegment = ref(null);
+                const buyBonusMultiplierColumns = ref([]);
                 const sortKey = ref('bets');
                 const sortOrder = ref('desc');
                 const searchQuery = ref('');
@@ -689,7 +757,8 @@
                                 billTime: new Date(row['Bill Time']).getTime(),
                                 betAmount: parseFloat(row['Bet Amount']) || 0,
                                 multiplier: parseFloat(row.Multiplier) || 0,
-                                betPlace: row['Bet Place'] || ""
+                                betPlace: row['Bet Place'] || "",
+                                balance: parseFloat(row.Balance) || 0
                             });
                         }
                     });
@@ -707,6 +776,7 @@
                 const analyzedData = computed(() => {
                     if (rawData.value.length === 0) return null;
                     const data = rawData.value;
+                    const globalBuyBonusMults = new Set();
 
                     const buyBonusAmounts = [85, 170, 850, 1700];
                     const normalBetAmounts = [1, 5, 10, 50, 100, 500, 1000];
@@ -742,9 +812,16 @@
                         currentSession: null,
                         multsCount: { '0x': 0, '0_1x': 0, '1_10x': 0, '10_50x': 0, '50x_plus': 0 },
                         bonusHits: 0,
+                        baseBonusHits: 0,
+                        baseBets: 0,
                         respinHits: 0,
                         betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
-                        buyBonusFreqs: { 85: 0, 170: 0, 850: 0, 1700: 0 }
+                        buyBonusFreqs: { 
+                            85: {count: 0, win: 0, multsCount: {}}, 
+                            170: {count: 0, win: 0, multsCount: {}}, 
+                            850: {count: 0, win: 0, multsCount: {}}, 
+                            1700: {count: 0, win: 0, multsCount: {}} 
+                        }
                     });
 
                     const stats = {
@@ -772,16 +849,32 @@
                                 totalWinAmount: 0,
                                 buyBonusCount: 0,
                                 betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
-                                buyBonusFreqs: { 85: 0, 170: 0, 850: 0, 1700: 0 }
+                                buyBonusFreqs: { 
+                                    85: {count: 0, win: 0, multsCount: {}}, 
+                                    170: {count: 0, win: 0, multsCount: {}}, 
+                                    850: {count: 0, win: 0, multsCount: {}}, 
+                                    1700: {count: 0, win: 0, multsCount: {}} 
+                                },
+                                startBalance: row.balance,
+                                endBalance: row.balance
                             };
                         }
                         const us = userStats[row.account];
+                        us.endBalance = row.balance;
                         us.bets++;
                         us.totalBetAmount += row.betAmount;
                         us.totalWinAmount += (row.betAmount * row.multiplier);
                         if (isBuyBonus) {
                             us.buyBonusCount++;
-                            us.buyBonusFreqs[row.betAmount] = (us.buyBonusFreqs[row.betAmount] || 0) + 1;
+                            if (!us.buyBonusFreqs[row.betAmount]) {
+                                us.buyBonusFreqs[row.betAmount] = {count: 0, win: 0, multsCount: {}};
+                            }
+                            us.buyBonusFreqs[row.betAmount].count++;
+                            us.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
+
+                            const m = row.multiplier;
+                            globalBuyBonusMults.add(m);
+                            us.buyBonusFreqs[row.betAmount].multsCount[m] = (us.buyBonusFreqs[row.betAmount].multsCount[m] || 0) + 1;
                         } else {
                             us.betFreqs[row.betAmount] = (us.betFreqs[row.betAmount] || 0) + 1;
                         }
@@ -811,11 +904,15 @@
                         [stats[seg], stats['總計']].forEach(currStats => {
                             // Always tally frequencies regardless of toggle
                             if (isBuyBonus) {
-                                if (currStats.buyBonusFreqs[row.betAmount] !== undefined) {
-                                    currStats.buyBonusFreqs[row.betAmount]++;
-                                } else {
-                                    currStats.buyBonusFreqs[row.betAmount] = 1;
+                                if (!currStats.buyBonusFreqs[row.betAmount]) {
+                                    currStats.buyBonusFreqs[row.betAmount] = {count: 0, win: 0, multsCount: {}};
                                 }
+                                currStats.buyBonusFreqs[row.betAmount].count++;
+                                currStats.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
+
+                                const m = row.multiplier;
+                                globalBuyBonusMults.add(m);
+                                currStats.buyBonusFreqs[row.betAmount].multsCount[m] = (currStats.buyBonusFreqs[row.betAmount].multsCount[m] || 0) + 1;
                             } else {
                                 if (currStats.betFreqs[row.betAmount] !== undefined) {
                                     currStats.betFreqs[row.betAmount]++;
@@ -832,6 +929,10 @@
                             currStats.totalBetAmount += row.betAmount;
                             currStats.totalWinAmount += (row.betAmount * row.multiplier);
                             currStats.totalBets++;
+                            if (!isBuyBonus) {
+                                currStats.baseBets++;
+                                if (hasB) currStats.baseBonusHits++;
+                            }
 
                             // 倍數
                             const m = row.multiplier;
@@ -884,6 +985,8 @@
                         }
                     }
 
+                    buyBonusMultiplierColumns.value = Array.from(globalBuyBonusMults).sort((a, b) => a - b);
+
                     // 4. 結算轉換
                     const result = {};
                     for (const [seg, s] of Object.entries(stats)) {
@@ -898,6 +1001,17 @@
                             mults[k] = s.totalBets > 0 ? (v / s.totalBets) * 100 : 0;
                         }
 
+                        let sumStartBalance = 0;
+                        let sumEndBalance = 0;
+                        s.users.forEach(acc => {
+                            if (userStats[acc]) {
+                                sumStartBalance += userStats[acc].startBalance;
+                                sumEndBalance += userStats[acc].endBalance;
+                            }
+                        });
+                        const avgStartBalance = s.users.size > 0 ? sumStartBalance / s.users.size : 0;
+                        const avgEndBalance = s.users.size > 0 ? sumEndBalance / s.users.size : 0;
+
                         const betFreqArray = Object.keys(s.betFreqs)
                             .map(Number)
                             .sort((a, b) => a - b)
@@ -906,7 +1020,17 @@
                         const buyBonusFreqArray = Object.keys(s.buyBonusFreqs)
                             .map(Number)
                             .sort((a, b) => a - b)
-                            .map(amt => ({ amount: amt, count: s.buyBonusFreqs[amt] }));
+                            .map(amt => {
+                                const b = s.buyBonusFreqs[amt];
+                                const rtp = (b.count > 0 && amt > 0) ? (b.win / (b.count * amt)) * 100 : 0;
+                                const mults = {};
+                                if (b.multsCount) {
+                                    for (const [k, v] of Object.entries(b.multsCount)) {
+                                        mults[k] = b.count > 0 ? (v / b.count) * 100 : 0;
+                                    }
+                                }
+                                return { amount: amt, count: b.count, rtp: rtp, mults: mults };
+                            });
 
                         result[seg] = {
                             headcount: s.users.size,
@@ -920,7 +1044,10 @@
                             avgBets: s.users.size > 0 ? (s.totalBets / s.users.size) : 0,
                             mults: mults,
                             bonusRate: s.totalBets > 0 ? (s.bonusHits / s.totalBets) * 100 : 0,
+                            baseBonusRate: s.baseBets > 0 ? (s.baseBonusHits / s.baseBets) * 100 : 0,
                             respinRate: s.totalBets > 0 ? (s.respinHits / s.totalBets) * 100 : 0,
+                            avgStartBalance: avgStartBalance,
+                            avgEndBalance: avgEndBalance,
                             betFreqs: betFreqArray,
                             buyBonusFreqs: buyBonusFreqArray
                         };
@@ -948,6 +1075,7 @@
                     const labels = [];
                     const betData = [];
                     const rtpData = [];
+                    const balanceData = [];
                     const pointStyles = [];
                     const pointRadii = [];
                     const pointColors = [];
@@ -965,6 +1093,7 @@
 
                         const rtp = cumBet > 0 ? (cumWin / cumBet) * 100 : 0;
                         rtpData.push(rtp);
+                        balanceData.push(row.balance);
 
                         if (buyBonusAmounts.includes(row.betAmount)) {
                             pointStyles.push('star');
@@ -977,7 +1106,7 @@
                         }
                     });
 
-                    chartCache = { labels, betData, rtpData, pointStyles, pointRadii, pointColors };
+                    chartCache = { labels, betData, rtpData, balanceData, pointStyles, pointRadii, pointColors };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1030,6 +1159,18 @@
                                     borderColor: '#6366f1',
                                     borderWidth: 1,
                                     order: 2
+                                },
+                                {
+                                    label: '玩家餘額 (Balance)',
+                                    data: sliceData(chartCache.balanceData),
+                                    type: 'line',
+                                    yAxisID: 'yBalance',
+                                    borderColor: '#34d399', // emerald-400
+                                    borderWidth: 2,
+                                    pointRadius: 0, // 不顯示點點，讓曲線更乾淨
+                                    tension: 0.1,
+                                    fill: false,
+                                    order: 0
                                 }
                             ]
                         },
@@ -1044,6 +1185,12 @@
                                     title: { display: true, text: 'RTP %', color: '#38bdf8' },
                                     ticks: { color: '#38bdf8', callback: function (val) { return val + '%'; } },
                                     grid: { color: 'rgba(255,255,255,0.1)' }
+                                },
+                                yBalance: {
+                                    type: 'linear', position: 'right',
+                                    title: { display: true, text: 'Balance', color: '#34d399' },
+                                    ticks: { color: '#34d399' },
+                                    grid: { drawOnChartArea: false }
                                 },
                                 yBet: {
                                     type: 'category',
@@ -1064,6 +1211,8 @@
                                             if (label) label += ': ';
                                             if (context.dataset.yAxisID === 'yRTP') {
                                                 label += context.parsed.y.toFixed(2) + '%';
+                                            } else if (context.dataset.yAxisID === 'yBalance') {
+                                                label += context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                             } else {
                                                 label += context.raw; // 對於 category 軸，應使用原始字串值
                                             }
@@ -1110,7 +1259,9 @@
                         { name: 'Win Rate', key: 'winRate', fmt: v => v.toFixed(2) + '%' },
                         { name: '平均遊玩時長(分)', key: 'avgDuration', fmt: v => v.toFixed(2) },
                         { name: '平均遊玩局數', key: 'avgBets', fmt: v => Math.round(v) },
-                        { name: 'Bonus Hit Rate', key: 'bonusRate', fmt: v => v.toFixed(2) + '%' },
+                        { name: '平均進場餘額', key: 'avgStartBalance', fmt: v => v.toFixed(2) },
+                        { name: 'Bonus Hit Rate (含購買)', key: 'bonusRate', fmt: v => v.toFixed(2) + '%' },
+                        { name: 'Bonus Hit Rate (不含購買)', key: 'baseBonusRate', fmt: v => v.toFixed(2) + '%' },
                         { name: 'Respin Hit Rate', key: 'respinRate', fmt: v => v.toFixed(2) + '%' }
                     ];
                     md += '| 玩家群體 | ' + rows1.map(r => r.name).join(' | ') + ' |\n';
@@ -1162,7 +1313,11 @@
                         let rowStr = `| ${seg} |`;
                         buyAmts.forEach(amt => {
                             const match = data[seg].buyBonusFreqs.find(i => i.amount === amt);
-                            rowStr += ` ${match ? match.count.toLocaleString() : 0} |`;
+                            if (match && match.count > 0) {
+                                rowStr += ` ${match.count.toLocaleString()} (RTP: ${match.rtp.toFixed(2)}%) |`;
+                            } else {
+                                rowStr += ` 0 |`;
+                            }
                         });
                         md += rowStr + '\n';
                     });
@@ -1188,7 +1343,17 @@
                     document.body.removeChild(link);
                 };
 
-                return { highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers };
+                const getHeatmapStyle = (val) => {
+                    if (!val || val === 0) return {};
+                    // 使用紅色系熱力圖，根據數值高低決定不透明度
+                    const alpha = 0.1 + (val / 100) * 0.9;
+                    return {
+                        backgroundColor: `rgba(239, 68, 68, ${alpha})`, // Tailwind red-500
+                        color: val > 40 ? '#ffffff' : '' // 若顏色太深則文字變白以利閱讀
+                    };
+                };
+
+                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers };
             }
         }).mount('#app');
     </script>
