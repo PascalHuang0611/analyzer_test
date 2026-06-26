@@ -1483,7 +1483,13 @@
                         });
 
                         if (!response.ok) {
-                            throw new Error(`伺服器錯誤: ${response.status}`);
+                            let errorMsg = `伺服器錯誤: ${response.status}`;
+                            try {
+                                const errorData = await response.json();
+                                if (errorData.details) errorMsg += `\n${errorData.details}`;
+                                else if (errorData.error) errorMsg += `\n${errorData.error}`;
+                            } catch (e) {}
+                            throw new Error(errorMsg);
                         }
 
                         const data = await response.json();
