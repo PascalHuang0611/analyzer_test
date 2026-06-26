@@ -176,7 +176,7 @@
                         <span style="font-family: 'Noto Sans TC', sans-serif;" class="text-3xl ml-1">分析儀表板</span>
                     </div>
                     <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold"
-                        style="font-family: 'Inter', sans-serif;">v1.5</span>
+                        style="font-family: 'Inter', sans-serif;">v1.6.0</span>
                 </h1>
                 <p class="animate-subtitle text-gray-400 mt-3">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -226,15 +226,15 @@
                         <p class="text-sm text-gray-400">將分群指標與大戶資料交由 AI 產生營運策略</p>
                     </div>
                     <div class="flex items-center gap-4">
-                        <button @click="analyzeSegments" :disabled="globalLoading"
+                        <button @click="analyzeSegments" :disabled="isAnyAILoading"
                             class="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-fuchsia-500/30 flex items-center gap-2">
-                            <span v-if="globalLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span v-if="segmentLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
                             <span v-else>📊</span>
                             分群診斷
                         </button>
-                        <button @click="analyzeOverview" :disabled="globalLoading"
+                        <button @click="analyzeOverview" :disabled="isAnyAILoading"
                             class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2">
-                            <span v-if="globalLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span v-if="overviewLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
                             <span v-else>🧭</span>
                             整體報告
                         </button>
@@ -652,7 +652,7 @@
                                 class="p-6 border-b border-white/10 flex justify-between items-center bg-indigo-900/20">
                                 <h3 class="text-xl font-bold text-cyan-300">玩家詳細分佈 - {{ selectedPlayer.account }}</h3>
                                 <div class="flex items-center space-x-4">
-                                    <button @click="analyzeWithAI(selectedPlayer.account)" :disabled="isAnalyzing"
+                                    <button @click="analyzeWithAI(selectedPlayer.account)" :disabled="isAnyAILoading"
                                         class="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold transition-colors text-sm shadow-lg shadow-fuchsia-500/30 flex items-center gap-2">
                                         <span v-if="isAnalyzing"
                                             class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
@@ -890,10 +890,13 @@
                 const isAnalyzing = ref(false);
                 const aiResult = ref(null);
 
-                const globalLoading = ref(false);
+                const segmentLoading = ref(false);
+                const overviewLoading = ref(false);
                 const globalResult = ref(null);
                 const overviewResult = ref(null);
                 const globalError = ref("");
+
+                const isAnyAILoading = computed(() => isAnalyzing.value || segmentLoading.value || overviewLoading.value);
 
                 const showChartModal = ref(false);
                 let chartInstance = null;
@@ -1706,9 +1709,10 @@
                     }
                 };
 
-                const callProxy = async (mode, payload) => {
+                const callProxy = async (mode, payload, loadingRef) => {
                     if (!PROXY_URL) { globalError.value = "尚未設定 PROXY_URL"; return null; }
-                    globalLoading.value = true; globalError.value = "";
+                    loadingRef.value = true;
+                    globalError.value = "";
                     try {
                         const resp = await fetch(PROXY_URL, {
                             method: "POST",
@@ -1722,7 +1726,7 @@
                         globalError.value = "分析失敗：" + (e.message || e);
                         return null;
                     } finally {
-                        globalLoading.value = false;
+                        loadingRef.value = false;
                     }
                 };
 
@@ -1737,7 +1741,7 @@
                         };
                     });
                     overviewResult.value = null;
-                    globalResult.value = await callProxy("segments", { segments: segs });
+                    globalResult.value = await callProxy("segments", { segments: segs }, segmentLoading);
                 };
 
                 const analyzeOverview = async () => {
@@ -1751,10 +1755,10 @@
                         .slice(0, 12)
                         .map(p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets }));
                     globalResult.value = null;
-                    overviewResult.value = await callProxy("overview", { segments: segs, top_players: top });
+                    overviewResult.value = await callProxy("overview", { segments: segs, top_players: top }, overviewLoading);
                 };
 
-                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, globalLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview };
+                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading };
             }
         }).mount('#app');
     </script>
