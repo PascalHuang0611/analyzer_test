@@ -490,6 +490,12 @@
                                 class="p-6 border-b border-white/10 flex justify-between items-center bg-indigo-900/20">
                                 <h3 class="text-xl font-bold text-cyan-300">玩家詳細分佈 - {{ selectedPlayer.account }}</h3>
                                 <div class="flex items-center space-x-4">
+                                    <button @click="analyzeWithAI(selectedPlayer.account)" :disabled="isAnalyzing"
+                                        class="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold transition-colors text-sm shadow-lg shadow-fuchsia-500/30 flex items-center gap-2">
+                                        <span v-if="isAnalyzing" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                        <span v-else>🤖</span>
+                                        {{ isAnalyzing ? '分析中...' : 'AI 分析' }}
+                                    </button>
                                     <button @click="openChart"
                                         class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition-colors text-sm shadow-lg shadow-indigo-500/30">
                                         📈 查看歷程圖表
@@ -505,6 +511,34 @@
                                 </div>
                             </div>
                             <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+                                <!-- AI Analysis Result Card -->
+                                <div v-if="aiResult" class="bg-gradient-to-r from-fuchsia-900/40 to-purple-900/40 rounded-xl p-5 border border-fuchsia-500/30 shadow-lg shadow-fuchsia-500/10 animate-fade-in">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="bg-fuchsia-600 text-white font-bold px-3 py-1 rounded-lg text-sm">
+                                                價值評分: {{ aiResult.value_score }}
+                                            </div>
+                                            <div class="text-fuchsia-300 font-bold">
+                                                {{ aiResult.tier }}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-sm">
+                                            <span class="text-gray-400">流失風險:</span>
+                                            <span class="font-bold px-2 py-0.5 rounded"
+                                                :class="{
+                                                    'bg-green-500/20 text-green-400': aiResult.churn_risk === 'low',
+                                                    'bg-yellow-500/20 text-yellow-400': aiResult.churn_risk === 'medium',
+                                                    'bg-red-500/20 text-red-400': aiResult.churn_risk === 'high'
+                                                }">
+                                                {{ aiResult.churn_risk.toUpperCase() }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-200 text-sm leading-relaxed border-t border-fuchsia-500/20 pt-3">
+                                        {{ aiResult.reasoning }}
+                                    </p>
+                                </div>
+
                                 <!-- Bet Freqs -->
                                 <div>
                                     <h4 class="text-lg font-bold mb-3 text-indigo-300">一般投注籌碼次數</h4>
@@ -654,6 +688,9 @@
                 const sortOrder = ref('desc');
                 const searchQuery = ref('');
 
+                const isAnalyzing = ref(false);
+                const aiResult = ref(null);
+
                 const showChartModal = ref(false);
                 let chartInstance = null;
                 const displayCount = ref(50);
@@ -681,8 +718,9 @@
                     displayCount.value = 50; // 改變排序時重置顯示數量
                 };
 
-                // 鎖定背景捲動
+                // 鎖定背景捲動並清除舊的 AI 結果
                 watch([selectedPlayer, showChartModal], ([player, chart]) => {
+                    if (player) aiResult.value = null;
                     if (player || chart) {
                         document.body.style.overflow = 'hidden';
                     } else {
@@ -1353,7 +1391,112 @@
                     };
                 };
 
-                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers };
+                const PROXY_URL = 'https://bet-ai-proxy-582604608010.asia-east1.run.app/analyze';
+
+                const buildPlayerFeatures = (account) => {
+                    const playerBets = rawData.value.filter(row => row.account === account);
+                    if (playerBets.length === 0) return null;
+
+                    const stats = analyzedData.value.allPlayers.find(p => p.account === account);
+                    if (!stats) return null;
+
+                    // Calculate early/late avg bet
+                    const half = Math.floor(playerBets.length / 2);
+                    const earlyBets = playerBets.slice(0, half);
+                    const lateBets = playerBets.slice(half);
+                    
+                    const earlyAvg = earlyBets.length > 0 ? earlyBets.reduce((sum, b) => sum + b.betAmount, 0) / earlyBets.length : 0;
+                    const lateAvg = lateBets.length > 0 ? lateBets.reduce((sum, b) => sum + b.betAmount, 0) / lateBets.length : 0;
+
+                    // Sessions (interval > 30 mins)
+                    let sessions = 1;
+                    for (let i = 1; i < playerBets.length; i++) {
+                        if (playerBets[i].billTime - playerBets[i-1].billTime > 30 * 60 * 1000) {
+                            sessions++;
+                        }
+                    }
+
+                    // Play span and recency
+                    const firstTime = playerBets[0].billTime;
+                    const lastTime = playerBets[playerBets.length - 1].billTime;
+                    const playSpanDays = Math.max(1, Math.ceil((lastTime - firstTime) / (1000 * 60 * 60 * 24)));
+                    const daysSinceLastBet = Math.max(0, Math.floor((Date.now() - lastTime) / (1000 * 60 * 60 * 24)));
+
+                    // Max balance and Max bet
+                    let maxBalance = 0;
+                    let maxBetAmount = 0;
+                    playerBets.forEach(b => {
+                        if (b.balance > maxBalance) maxBalance = b.balance;
+                        if (b.betAmount > maxBetAmount) maxBetAmount = b.betAmount;
+                    });
+
+                    // 10 buckets
+                    const bucketCount = 10;
+                    const bucketSize = Math.ceil(playerBets.length / bucketCount);
+                    const bet_trend_10buckets = [];
+                    for (let i = 0; i < bucketCount; i++) {
+                        const chunk = playerBets.slice(i * bucketSize, (i + 1) * bucketSize);
+                        if (chunk.length > 0) {
+                            const chunkAvg = chunk.reduce((sum, b) => sum + b.betAmount, 0) / chunk.length;
+                            bet_trend_10buckets.push({
+                                avg_bet: Math.round(chunkAvg),
+                                end_balance: chunk[chunk.length - 1].balance
+                            });
+                        }
+                    }
+
+                    return {
+                        account: account,
+                        total_bets: stats.bets,
+                        total_staked: stats.totalBetAmount,
+                        avg_bet: Math.round(stats.avgBet),
+                        rtp_pct: Number((stats.totalBetAmount > 0 ? (stats.totalWinAmount / stats.totalBetAmount) * 100 : 0).toFixed(2)),
+                        ggr: stats.ggr,
+                        start_balance: stats.startBalance,
+                        end_balance: stats.endBalance,
+                        net_balance_change: stats.endBalance - stats.startBalance,
+                        buy_bonus_count: stats.buyBonusCount,
+                        bet_size_distribution: stats.betFreqs,
+                        sessions: sessions,
+                        play_span_days: playSpanDays,
+                        days_since_last_bet: daysSinceLastBet,
+                        early_avg_bet: Math.round(earlyAvg),
+                        late_avg_bet: Math.round(lateAvg),
+                        max_balance: maxBalance,
+                        max_bet_amount: maxBetAmount,
+                        bet_trend_10buckets: bet_trend_10buckets
+                    };
+                };
+
+                const analyzeWithAI = async (account) => {
+                    const features = buildPlayerFeatures(account);
+                    if (!features) return;
+
+                    isAnalyzing.value = true;
+                    aiResult.value = null;
+
+                    try {
+                        const response = await fetch(PROXY_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(features)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`伺服器錯誤: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        aiResult.value = data;
+                    } catch (error) {
+                        console.error("AI 分析失敗:", error);
+                        alert("AI 分析失敗，請確認 Proxy 伺服器是否運行中。\n錯誤訊息：" + error.message);
+                    } finally {
+                        isAnalyzing.value = false;
+                    }
+                };
+
+                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI };
             }
         }).mount('#app');
     </script>
