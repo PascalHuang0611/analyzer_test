@@ -1,0 +1,14 @@
+{
+  "name": "lucky-coins-ai-proxy",
+  "version": "1.0.0",
+  "description": "Proxy for Vertex AI Player Analysis",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "@google-cloud/vertexai": "^1.7.0"
+  }
+}
