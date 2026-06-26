@@ -9,7 +9,8 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Noto+Sans+TC:wght@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Noto+Sans+TC:wght@900&display=swap"
+        rel="stylesheet">
     <style>
         body {
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
@@ -52,26 +53,31 @@
                 transform: translate(25vw, 30vh) scale(2);
                 filter: blur(20px) brightness(0);
             }
+
             20% {
                 opacity: 1;
                 /* 中央爆發強光 */
                 transform: translate(25vw, 30vh) scale(2.4);
                 filter: blur(0px) brightness(3) drop-shadow(0 0 60px #38bdf8);
             }
+
             45% {
                 opacity: 1;
                 /* 在中央停滯片刻並呼吸 */
                 transform: translate(25vw, 30vh) scale(2.2);
                 filter: brightness(2) drop-shadow(0 0 40px #22d3ee);
             }
+
             75% {
                 /* 瞬間飛往左上角定位點 */
                 transform: translate(0, 0) scale(0.95);
                 filter: brightness(1.2) drop-shadow(0 0 15px rgba(56, 189, 248, 0.8));
             }
+
             90% {
                 transform: translate(5px, 0) scale(1.02);
             }
+
             100% {
                 opacity: 1;
                 transform: translate(0, 0) scale(1);
@@ -81,8 +87,13 @@
 
         /* 文字內部的漸層無縫流動 */
         @keyframes text-shine {
-            0% { background-position: 0% center; }
-            100% { background-position: -200% center; }
+            0% {
+                background-position: 0% center;
+            }
+
+            100% {
+                background-position: -200% center;
+            }
         }
 
         .animate-title {
@@ -96,32 +107,61 @@
             transform-origin: center center;
             z-index: 50;
             position: relative;
-            animation: 
+            animation:
                 cyber-burst 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
                 text-shine 5s linear infinite;
         }
 
         /* 版本號的硬幣翻轉特效 */
         @keyframes coin-spin {
-            0% { transform: rotateY(-90deg) scale(0); opacity: 0; filter: brightness(1); }
-            50% { transform: rotateY(180deg) scale(1.3); opacity: 1; filter: brightness(2) drop-shadow(0 0 20px #22d3ee); }
-            100% { transform: rotateY(360deg) scale(1); opacity: 1; filter: brightness(1) drop-shadow(0 0 5px rgba(34, 211, 238, 0.5)); }
+            0% {
+                transform: rotateY(-90deg) scale(0);
+                opacity: 0;
+                filter: brightness(1);
+            }
+
+            50% {
+                transform: rotateY(180deg) scale(1.3);
+                opacity: 1;
+                filter: brightness(2) drop-shadow(0 0 20px #22d3ee);
+            }
+
+            100% {
+                transform: rotateY(360deg) scale(1);
+                opacity: 1;
+                filter: brightness(1) drop-shadow(0 0 5px rgba(34, 211, 238, 0.5));
+            }
         }
+
         .coin-spin {
             display: inline-block;
             opacity: 0;
-            animation: coin-spin 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.6s forwards; /* 延遲配合主標題抵達時間 */
+            animation: coin-spin 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.6s forwards;
+            /* 延遲配合主標題抵達時間 */
             transform-origin: center;
         }
 
         /* 副標題的掃描解碼浮現 */
         @keyframes subtitle-scan {
-            0% { opacity: 0; transform: translateY(15px); letter-spacing: -3px; filter: blur(5px); }
-            100% { opacity: 1; transform: translateY(0); letter-spacing: 0px; filter: blur(0px); }
+            0% {
+                opacity: 0;
+                transform: translateY(15px);
+                letter-spacing: -3px;
+                filter: blur(5px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+                letter-spacing: 0px;
+                filter: blur(0px);
+            }
         }
+
         .animate-subtitle {
             opacity: 0;
-            animation: subtitle-scan 1s cubic-bezier(0.2, 0.8, 0.2, 1) 1.5s forwards; /* 延遲配合主標題抵達時間 */
+            animation: subtitle-scan 1s cubic-bezier(0.2, 0.8, 0.2, 1) 1.5s forwards;
+            /* 延遲配合主標題抵達時間 */
         }
     </style>
 </head>
@@ -135,7 +175,8 @@
                         <span style="font-family: 'Orbitron', sans-serif;">Lucky Coins</span>
                         <span style="font-family: 'Noto Sans TC', sans-serif;" class="text-3xl ml-1">分析儀表板</span>
                     </div>
-                    <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold" style="font-family: 'Inter', sans-serif;">v1.5</span>
+                    <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold"
+                        style="font-family: 'Inter', sans-serif;">v1.5</span>
                 </h1>
                 <p class="animate-subtitle text-gray-400 mt-3">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -177,6 +218,117 @@
 
         <transition name="fade">
             <div v-if="analyzedData && !isProcessing" class="space-y-8">
+
+                <!-- Global AI Actions -->
+                <div class="glass rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">全局 AI 診斷</h2>
+                        <p class="text-sm text-gray-400">將分群指標與大戶資料交由 AI 產生營運策略</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button @click="analyzeSegments" :disabled="globalLoading"
+                            class="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-fuchsia-500/30 flex items-center gap-2">
+                            <span v-if="globalLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span v-else>📊</span>
+                            分群診斷
+                        </button>
+                        <button @click="analyzeOverview" :disabled="globalLoading"
+                            class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2">
+                            <span v-if="globalLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span v-else>🧭</span>
+                            整體報告
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Global Error -->
+                <div v-if="globalError" class="bg-red-500/20 border border-red-500/50 text-red-200 px-6 py-4 rounded-xl animate-fade-in">
+                    {{ globalError }}
+                </div>
+
+                <!-- Global Result (Segments) -->
+                <div v-if="globalResult" class="glass rounded-2xl p-6 border-t-4 border-fuchsia-500 animate-fade-in space-y-6">
+                    <div class="border-b border-white/10 pb-4">
+                        <h3 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-400 mb-2">
+                            {{ globalResult.headline }}
+                        </h3>
+                        <p class="text-gray-300 leading-relaxed">{{ globalResult.revenue_concentration }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div v-for="seg in globalResult.segments" :key="seg.name" class="bg-black/30 rounded-xl p-5 border border-white/5 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-1" :class="{
+                                'bg-green-500': seg.health === 'good',
+                                'bg-yellow-500': seg.health === 'watch',
+                                'bg-red-500': seg.health === 'risk'
+                            }"></div>
+                            <h4 class="text-lg font-bold mb-3 flex items-center gap-2">
+                                {{ seg.name }}玩家
+                                <span class="text-xs px-2 py-0.5 rounded-full font-bold" :class="{
+                                    'bg-green-500/20 text-green-400': seg.health === 'good',
+                                    'bg-yellow-500/20 text-yellow-400': seg.health === 'watch',
+                                    'bg-red-500/20 text-red-400': seg.health === 'risk'
+                                }">{{ seg.health.toUpperCase() }}</span>
+                            </h4>
+                            <p class="text-sm text-gray-300 mb-4 leading-relaxed">{{ seg.insight }}</p>
+                            <div class="bg-indigo-500/20 border border-indigo-500/30 p-3 rounded-lg text-sm text-indigo-200 font-semibold flex gap-2">
+                                <span class="shrink-0">🎯</span> {{ seg.action }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-red-900/20 border border-red-500/30 rounded-xl p-5">
+                        <h4 class="text-red-400 font-bold mb-3 flex items-center gap-2">⚠️ 主要風險訊號</h4>
+                        <ul class="list-disc list-inside text-sm text-gray-300 space-y-2">
+                            <li v-for="risk in globalResult.top_risks" :key="risk">{{ risk }}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Overview Result -->
+                <div v-if="overviewResult" class="glass rounded-2xl p-6 border-t-4 border-indigo-500 animate-fade-in space-y-6">
+                    <div class="border-b border-white/10 pb-4">
+                        <h3 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 mb-2">
+                            整體營運健康度報告
+                        </h3>
+                        <div class="bg-indigo-900/40 border border-indigo-500/30 p-4 rounded-xl text-lg text-indigo-100 font-semibold mb-4">
+                            {{ overviewResult.summary }}
+                        </div>
+                        <h4 class="font-bold text-gray-200 mb-2">收益結構分析</h4>
+                        <p class="text-gray-300 leading-relaxed text-sm">{{ overviewResult.revenue_source }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Watchlist -->
+                        <div class="bg-black/30 rounded-xl p-5 border border-white/5">
+                            <h4 class="text-lg font-bold mb-3 text-cyan-300 flex items-center gap-2">👁️ 焦點玩家觀察名單</h4>
+                            <div class="space-y-3">
+                                <div v-for="player in overviewResult.watchlist" :key="player.account" class="bg-cyan-900/20 border border-cyan-500/20 p-3 rounded-lg">
+                                    <div class="font-bold text-white mb-1">{{ player.account }}</div>
+                                    <div class="text-sm text-gray-400">{{ player.why }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Segment Actions -->
+                        <div class="bg-black/30 rounded-xl p-5 border border-white/5">
+                            <h4 class="text-lg font-bold mb-3 text-fuchsia-300 flex items-center gap-2">🎯 分群營運建議</h4>
+                            <div class="space-y-3">
+                                <div v-for="act in overviewResult.segment_actions" :key="act.name" class="bg-fuchsia-900/20 border border-fuchsia-500/20 p-3 rounded-lg">
+                                    <div class="font-bold text-white mb-1">{{ act.name }}玩家</div>
+                                    <div class="text-sm text-gray-400">{{ act.action }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-red-900/20 border border-red-500/30 rounded-xl p-5">
+                        <h4 class="text-red-400 font-bold mb-3 flex items-center gap-2">⚠️ 最高警惕事項</h4>
+                        <ul class="list-disc list-inside text-sm text-gray-300 space-y-2">
+                            <li v-for="risk in overviewResult.top_risks" :key="risk">{{ risk }}</li>
+                        </ul>
+                    </div>
+                </div>
 
                 <!-- Controls -->
                 <div class="glass rounded-2xl p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -252,14 +404,16 @@
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">平均進場餘額</span>
                                 <span class="font-bold text-white">
-                                    {{ analyzedData[seg].avgStartBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                    {{ analyzedData[seg].avgStartBalance.toLocaleString(undefined,
+                                    {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                 </span>
                             </div>
-                            
+
                             <!-- 剩下四個 Rate -->
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">Hit Rate</span>
-                                <span class="font-bold text-green-400">{{ analyzedData[seg].hitRate.toFixed(2) }}%</span>
+                                <span class="font-bold text-green-400">{{ analyzedData[seg].hitRate.toFixed(2)
+                                    }}%</span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">Win Rate</span>
@@ -268,12 +422,14 @@
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">Bonus Rate (含/不含)</span>
                                 <span class="font-bold text-yellow-400">
-                                    {{ analyzedData[seg].bonusRate.toFixed(2) }}% / {{ analyzedData[seg].baseBonusRate.toFixed(2) }}%
+                                    {{ analyzedData[seg].bonusRate.toFixed(2) }}% / {{
+                                    analyzedData[seg].baseBonusRate.toFixed(2) }}%
                                 </span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-400">Respin Rate</span>
-                                <span class="font-bold text-orange-400">{{ analyzedData[seg].respinRate.toFixed(2) }}%</span>
+                                <span class="font-bold text-orange-400">{{ analyzedData[seg].respinRate.toFixed(2)
+                                    }}%</span>
                             </div>
                         </div>
                     </div>
@@ -341,7 +497,8 @@
                                         {{ seg }}</td>
                                     <td v-for="item in analyzedData[seg].buyBonusFreqs" :key="item.amount" class="p-4">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
-                                        <div v-if="item.count > 0" class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                        <div v-if="item.count > 0" class="text-xs mt-1"
+                                            :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                             RTP: {{ item.rtp.toFixed(2) }}%
                                         </div>
                                     </td>
@@ -351,7 +508,8 @@
                                     <td class="p-4 whitespace-nowrap">總和</td>
                                     <td v-for="item in analyzedData['總計'].buyBonusFreqs" :key="item.amount" class="p-4">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
-                                        <div v-if="item.count > 0" class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                        <div v-if="item.count > 0" class="text-xs mt-1"
+                                            :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                             RTP: {{ item.rtp.toFixed(2) }}%
                                         </div>
                                     </td>
@@ -423,16 +581,20 @@
 
                 <!-- Block 5: Top 10 Players -->
                 <div class="glass rounded-2xl overflow-hidden mb-6">
-                    <div class="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div
+                        class="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h3 class="text-xl font-bold">全站投注排行榜</h3>
                             <p class="text-sm text-gray-400 mt-1">支援向下滾動檢視所有玩家。匯出 Markdown 時僅會匯出當下顯示列表的前 10 名。</p>
                         </div>
                         <div class="relative w-full md:w-64">
-                            <input type="text" v-model="searchQuery" placeholder="輸入 ACCID 搜尋..." 
+                            <input type="text" v-model="searchQuery" placeholder="輸入 ACCID 搜尋..."
                                 class="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-2 pl-10 focus:border-indigo-500 focus:outline-none transition-colors">
-                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400"
+                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
                     </div>
@@ -492,7 +654,8 @@
                                 <div class="flex items-center space-x-4">
                                     <button @click="analyzeWithAI(selectedPlayer.account)" :disabled="isAnalyzing"
                                         class="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold transition-colors text-sm shadow-lg shadow-fuchsia-500/30 flex items-center gap-2">
-                                        <span v-if="isAnalyzing" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                        <span v-if="isAnalyzing"
+                                            class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
                                         <span v-else>🤖</span>
                                         {{ isAnalyzing ? '分析中...' : 'AI 分析' }}
                                     </button>
@@ -512,10 +675,12 @@
                             </div>
                             <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
                                 <!-- AI Analysis Result Card -->
-                                <div v-if="aiResult" class="bg-gradient-to-r from-fuchsia-900/40 to-purple-900/40 rounded-xl p-5 border border-fuchsia-500/30 shadow-lg shadow-fuchsia-500/10 animate-fade-in">
+                                <div v-if="aiResult"
+                                    class="bg-gradient-to-r from-fuchsia-900/40 to-purple-900/40 rounded-xl p-5 border border-fuchsia-500/30 shadow-lg shadow-fuchsia-500/10 animate-fade-in">
                                     <div class="flex items-start justify-between mb-3">
                                         <div class="flex items-center gap-3">
-                                            <div class="bg-fuchsia-600 text-white font-bold px-3 py-1 rounded-lg text-sm">
+                                            <div
+                                                class="bg-fuchsia-600 text-white font-bold px-3 py-1 rounded-lg text-sm">
                                                 價值評分: {{ aiResult.value_score }}
                                             </div>
                                             <div class="text-fuchsia-300 font-bold">
@@ -524,8 +689,7 @@
                                         </div>
                                         <div class="flex items-center gap-2 text-sm">
                                             <span class="text-gray-400">流失風險:</span>
-                                            <span class="font-bold px-2 py-0.5 rounded"
-                                                :class="{
+                                            <span class="font-bold px-2 py-0.5 rounded" :class="{
                                                     'bg-green-500/20 text-green-400': aiResult.churn_risk === 'low',
                                                     'bg-yellow-500/20 text-yellow-400': aiResult.churn_risk === 'medium',
                                                     'bg-red-500/20 text-red-400': aiResult.churn_risk === 'high'
@@ -534,9 +698,21 @@
                                             </span>
                                         </div>
                                     </div>
-                                    <p class="text-gray-200 text-sm leading-relaxed border-t border-fuchsia-500/20 pt-3">
+                                    <p
+                                        class="text-gray-200 text-sm leading-relaxed border-t border-fuchsia-500/20 pt-3">
                                         {{ aiResult.reasoning }}
                                     </p>
+                                    <div v-if="aiResult.key_signals && aiResult.key_signals.length > 0" class="mt-3">
+                                        <div class="text-xs text-fuchsia-300 font-bold mb-1">關鍵訊號：</div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <span v-for="signal in aiResult.key_signals" :key="signal" class="bg-fuchsia-900/50 text-fuchsia-200 px-2 py-1 rounded text-xs border border-fuchsia-700/50">
+                                                {{ signal }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div v-if="aiResult.suggested_action" class="mt-3 bg-fuchsia-500/10 border border-fuchsia-500/30 p-2 rounded text-sm text-fuchsia-100 font-semibold flex items-start gap-2">
+                                        <span class="text-fuchsia-400">💡</span> {{ aiResult.suggested_action }}
+                                    </div>
                                 </div>
 
                                 <!-- Bet Freqs -->
@@ -575,9 +751,15 @@
                                                 <tr>
                                                     <td v-for="amt in [85, 170, 850, 1700]" :key="'buy-val-'+amt"
                                                         class="p-3 whitespace-nowrap">
-                                                        <div v-if="selectedPlayer.buyBonusFreqs[amt] && selectedPlayer.buyBonusFreqs[amt].count > 0">
-                                                            <div>{{ selectedPlayer.buyBonusFreqs[amt].count.toLocaleString() }} 次</div>
-                                                            <div class="text-xs text-gray-400 mt-1">RTP: {{ ((selectedPlayer.buyBonusFreqs[amt].win / (selectedPlayer.buyBonusFreqs[amt].count * amt)) * 100).toFixed(2) }}%</div>
+                                                        <div
+                                                            v-if="selectedPlayer.buyBonusFreqs[amt] && selectedPlayer.buyBonusFreqs[amt].count > 0">
+                                                            <div>{{
+                                                                selectedPlayer.buyBonusFreqs[amt].count.toLocaleString()
+                                                                }} 次</div>
+                                                            <div class="text-xs text-gray-400 mt-1">RTP: {{
+                                                                ((selectedPlayer.buyBonusFreqs[amt].win /
+                                                                (selectedPlayer.buyBonusFreqs[amt].count * amt)) *
+                                                                100).toFixed(2) }}%</div>
                                                         </div>
                                                         <div v-else>0</div>
                                                     </td>
@@ -593,14 +775,22 @@
 
                 <!-- Buy Bonus Segment Details Modal -->
                 <teleport to="body">
-                    <div v-if="selectedBonusSegment && analyzedData" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="selectedBonusSegment = null"></div>
-                        <div class="relative w-full max-w-4xl glass rounded-2xl overflow-hidden shadow-2xl border border-white/20 animate-fade-in">
-                            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-purple-900/20">
-                                <h3 class="text-xl font-bold text-purple-300">購買 Bonus 獎項分配 - {{ selectedBonusSegment }}</h3>
-                                <button @click="selectedBonusSegment = null" class="text-gray-400 hover:text-white transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <div v-if="selectedBonusSegment && analyzedData"
+                        class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div class="absolute inset-0 bg-black/70 backdrop-blur-md" @click="selectedBonusSegment = null">
+                        </div>
+                        <div
+                            class="relative w-full max-w-4xl glass rounded-2xl overflow-hidden shadow-2xl border border-white/20 animate-fade-in">
+                            <div
+                                class="p-6 border-b border-white/10 flex justify-between items-center bg-purple-900/20">
+                                <h3 class="text-xl font-bold text-purple-300">購買 Bonus 獎項分配 - {{ selectedBonusSegment }}
+                                </h3>
+                                <button @click="selectedBonusSegment = null"
+                                    class="text-gray-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
@@ -610,14 +800,17 @@
                                         <tr class="table-header text-sm text-purple-200">
                                             <th class="p-4 font-semibold whitespace-nowrap">購買面額</th>
                                             <th class="p-4 font-semibold whitespace-nowrap">購買次數</th>
-                                            <th v-for="m in buyBonusMultiplierColumns" :key="'th-'+m" class="p-4 font-semibold whitespace-nowrap">{{ m }}x</th>
+                                            <th v-for="m in buyBonusMultiplierColumns" :key="'th-'+m"
+                                                class="p-4 font-semibold whitespace-nowrap">{{ m }}x</th>
                                         </tr>
                                     </thead>
                                     <tbody class="text-sm text-white">
-                                        <tr v-for="item in analyzedData[selectedBonusSegment].buyBonusFreqs" :key="item.amount" class="border-b border-white/5">
+                                        <tr v-for="item in analyzedData[selectedBonusSegment].buyBonusFreqs"
+                                            :key="item.amount" class="border-b border-white/5">
                                             <td class="p-4 font-bold text-purple-300">Buy {{ item.amount }}</td>
                                             <td class="p-4 font-bold">{{ item.count.toLocaleString() }}</td>
-                                            <td v-for="m in buyBonusMultiplierColumns" :key="'td-'+m" class="p-4 font-medium transition-colors"
+                                            <td v-for="m in buyBonusMultiplierColumns" :key="'td-'+m"
+                                                class="p-4 font-medium transition-colors"
                                                 :style="getHeatmapStyle(item.mults[m])">
                                                 {{ item.mults[m] ? item.mults[m].toFixed(2) : '0.00' }}%
                                             </td>
@@ -647,15 +840,21 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div class="px-6 py-3 border-b border-white/10 bg-black/40 flex flex-wrap gap-4 items-center shrink-0">
+                            <div
+                                class="px-6 py-3 border-b border-white/10 bg-black/40 flex flex-wrap gap-4 items-center shrink-0">
                                 <span class="text-sm text-gray-300">顯示範圍 (局數):</span>
                                 <div class="flex items-center gap-2">
-                                    <input type="number" v-model.number="chartStart" class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center" min="1" :max="chartEnd">
+                                    <input type="number" v-model.number="chartStart"
+                                        class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center"
+                                        min="1" :max="chartEnd">
                                     <span class="text-sm text-gray-400">至</span>
-                                    <input type="number" v-model.number="chartEnd" class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center" :min="chartStart" :max="chartMax">
+                                    <input type="number" v-model.number="chartEnd"
+                                        class="w-20 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-center"
+                                        :min="chartStart" :max="chartMax">
                                 </div>
                                 <span class="text-sm text-gray-400">/ 總共 {{ chartMax }} 局</span>
-                                <button @click="renderChart" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm text-white transition-colors shadow-lg">更新圖表</button>
+                                <button @click="renderChart"
+                                    class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm text-white transition-colors shadow-lg">更新圖表</button>
                             </div>
                             <div class="p-6 flex-1 w-full relative">
                                 <canvas id="playerChart"></canvas>
@@ -691,10 +890,15 @@
                 const isAnalyzing = ref(false);
                 const aiResult = ref(null);
 
+                const globalLoading = ref(false);
+                const globalResult = ref(null);
+                const overviewResult = ref(null);
+                const globalError = ref("");
+
                 const showChartModal = ref(false);
                 let chartInstance = null;
                 const displayCount = ref(50);
-                
+
                 const chartStart = ref(1);
                 const chartEnd = ref(1);
                 const chartMax = ref(1);
@@ -854,11 +1058,11 @@
                         baseBets: 0,
                         respinHits: 0,
                         betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
-                        buyBonusFreqs: { 
-                            85: {count: 0, win: 0, multsCount: {}}, 
-                            170: {count: 0, win: 0, multsCount: {}}, 
-                            850: {count: 0, win: 0, multsCount: {}}, 
-                            1700: {count: 0, win: 0, multsCount: {}} 
+                        buyBonusFreqs: {
+                            85: { count: 0, win: 0, multsCount: {} },
+                            170: { count: 0, win: 0, multsCount: {} },
+                            850: { count: 0, win: 0, multsCount: {} },
+                            1700: { count: 0, win: 0, multsCount: {} }
                         }
                     });
 
@@ -887,11 +1091,11 @@
                                 totalWinAmount: 0,
                                 buyBonusCount: 0,
                                 betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
-                                buyBonusFreqs: { 
-                                    85: {count: 0, win: 0, multsCount: {}}, 
-                                    170: {count: 0, win: 0, multsCount: {}}, 
-                                    850: {count: 0, win: 0, multsCount: {}}, 
-                                    1700: {count: 0, win: 0, multsCount: {}} 
+                                buyBonusFreqs: {
+                                    85: { count: 0, win: 0, multsCount: {} },
+                                    170: { count: 0, win: 0, multsCount: {} },
+                                    850: { count: 0, win: 0, multsCount: {} },
+                                    1700: { count: 0, win: 0, multsCount: {} }
                                 },
                                 startBalance: row.balance,
                                 endBalance: row.balance
@@ -905,7 +1109,7 @@
                         if (isBuyBonus) {
                             us.buyBonusCount++;
                             if (!us.buyBonusFreqs[row.betAmount]) {
-                                us.buyBonusFreqs[row.betAmount] = {count: 0, win: 0, multsCount: {}};
+                                us.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
                             }
                             us.buyBonusFreqs[row.betAmount].count++;
                             us.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
@@ -943,7 +1147,7 @@
                             // Always tally frequencies regardless of toggle
                             if (isBuyBonus) {
                                 if (!currStats.buyBonusFreqs[row.betAmount]) {
-                                    currStats.buyBonusFreqs[row.betAmount] = {count: 0, win: 0, multsCount: {}};
+                                    currStats.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
                                 }
                                 currStats.buyBonusFreqs[row.betAmount].count++;
                                 currStats.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
@@ -1250,7 +1454,7 @@
                                             if (context.dataset.yAxisID === 'yRTP') {
                                                 label += context.parsed.y.toFixed(2) + '%';
                                             } else if (context.dataset.yAxisID === 'yBalance') {
-                                                label += context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                                label += context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                             } else {
                                                 label += context.raw; // 對於 category 軸，應使用原始字串值
                                             }
@@ -1404,14 +1608,14 @@
                     const half = Math.floor(playerBets.length / 2);
                     const earlyBets = playerBets.slice(0, half);
                     const lateBets = playerBets.slice(half);
-                    
+
                     const earlyAvg = earlyBets.length > 0 ? earlyBets.reduce((sum, b) => sum + b.betAmount, 0) / earlyBets.length : 0;
                     const lateAvg = lateBets.length > 0 ? lateBets.reduce((sum, b) => sum + b.betAmount, 0) / lateBets.length : 0;
 
                     // Sessions (interval > 30 mins)
                     let sessions = 1;
                     for (let i = 1; i < playerBets.length; i++) {
-                        if (playerBets[i].billTime - playerBets[i-1].billTime > 30 * 60 * 1000) {
+                        if (playerBets[i].billTime - playerBets[i - 1].billTime > 30 * 60 * 1000) {
                             sessions++;
                         }
                     }
@@ -1488,7 +1692,7 @@
                                 const errorData = await response.json();
                                 if (errorData.details) errorMsg += `\n${errorData.details}`;
                                 else if (errorData.error) errorMsg += `\n${errorData.error}`;
-                            } catch (e) {}
+                            } catch (e) { }
                             throw new Error(errorMsg);
                         }
 
@@ -1502,7 +1706,55 @@
                     }
                 };
 
-                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI };
+                const callProxy = async (mode, payload) => {
+                    if (!PROXY_URL) { globalError.value = "尚未設定 PROXY_URL"; return null; }
+                    globalLoading.value = true; globalError.value = "";
+                    try {
+                        const resp = await fetch(PROXY_URL, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ mode, payload })
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || ("後端回應 " + resp.status));
+                        return data;
+                    } catch (e) {
+                        globalError.value = "分析失敗：" + (e.message || e);
+                        return null;
+                    } finally {
+                        globalLoading.value = false;
+                    }
+                };
+
+                const analyzeSegments = async () => {
+                    const segs = {};
+                    ['高價值玩家', '中階玩家', '休閒玩家'].forEach(s => {
+                        const d = analyzedData.value[s];
+                        if (d) segs[s] = {
+                            headcount: d.headcount, avgBet: d.avgBet, totalBet: d.totalBet, ggr: d.ggr, rtp: d.rtp,
+                            hitRate: d.hitRate, winRate: d.winRate, bonusRate: d.bonusRate, respinRate: d.respinRate,
+                            avgDuration: d.avgDuration, avgBets: d.avgBets, avgStartBalance: d.avgStartBalance, avgEndBalance: d.avgEndBalance
+                        };
+                    });
+                    overviewResult.value = null;
+                    globalResult.value = await callProxy("segments", { segments: segs });
+                };
+
+                const analyzeOverview = async () => {
+                    const segs = {};
+                    ['高價值玩家', '中階玩家', '休閒玩家'].forEach(s => {
+                        const d = analyzedData.value[s];
+                        if (d) segs[s] = { headcount: d.headcount, avgBet: d.avgBet, totalBet: d.totalBet, ggr: d.ggr, rtp: d.rtp, avgDuration: d.avgDuration, avgBets: d.avgBets };
+                    });
+                    const top = [...(analyzedData.value.allPlayers || [])]
+                        .sort((a, b) => b.totalBetAmount - a.totalBetAmount)
+                        .slice(0, 12)
+                        .map(p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets }));
+                    globalResult.value = null;
+                    overviewResult.value = await callProxy("overview", { segments: segs, top_players: top });
+                };
+
+                return { getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, globalLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview };
             }
         }).mount('#app');
     </script>

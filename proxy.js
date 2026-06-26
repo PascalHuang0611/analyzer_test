@@ -8,10 +8,16 @@ const port = process.env.PORT || 3000;
 // Initialize Vertex AI
 // We use ADC automatically. We expect PROJECT_ID to be provided in env (e.g., via Cloud Run config)
 const projectId = process.env.PROJECT_ID || 'antigravity-claude-bridge';
-const location = process.env.REGION || 'asia-east1';
-const vertexAI = new VertexAI({ project: projectId, location: location });
+// gemini-3.5-flash 走 global 端點供應最穩；asia-east1 已排定淘汰、叫不到此模型
+const location = process.env.REGION || 'global';
+const vertexAI = new VertexAI({
+    project: projectId,
+    location: location,
+    // 走 global 時必須明確指定 host，否則 SDK 會錯拼成 global-aiplatform.googleapis.com
+    ...(location === 'global' ? { apiEndpoint: 'aiplatform.googleapis.com' } : {})
+});
 
-// Use gemini-3.5-flash as the latest and most capable fast model
+// Use gemini-3.5-flash as confirmed in the Model Garden
 const generativeModel = vertexAI.getGenerativeModel({
     model: 'gemini-3.5-flash',
     generationConfig: {
@@ -20,8 +26,8 @@ const generativeModel = vertexAI.getGenerativeModel({
     }
 });
 
-// System Prompt from the guide
-const SYSTEM_PROMPT = `
+// System Prompt for Single Player
+const SYSTEM_PLAYER = `
 你是一位資深的博弈玩家行為分析師，專長是從老虎機(slot)注單的統計特徵，
 判斷玩家對營運方的「價值」與「流失風險」，並給出可行動的觀察。
 
@@ -73,7 +79,9 @@ ggr 為正且可觀（實際帶來收益）、buy_bonus_count 高（高投入意
   "value_score": <0-100 整數>,
   "tier": "<高價值 | 中階 | 休閒>",
   "churn_risk": "<low | medium | high>",
-  "reasoning": "<繁體中文 2-4 句，點出最關鍵的 2-3 個依據>"
+  "reasoning": "<繁體中文 4-6 句，先講價值判斷與依據，再講流失訊號與建議行動，要引用具體數字>",
+  "key_signals": ["<關鍵訊號1>", "<關鍵訊號2>", "<關鍵訊號3>"],
+  "suggested_action": "<具體建議>"
 }
 
 【範例】
@@ -88,7 +96,78 @@ ggr 為正且可觀（實際帶來收益）、buy_bonus_count 高（高投入意
   "bet_trend_10buckets":[{"avg_bet":540,"end_balance":62000},{"avg_bet":300,"end_balance":8200}]
 }
 理想輸出：
-{"value_score":84,"tier":"高價值","churn_risk":"medium","reasoning":"累積押注 185 萬、平均單注 462、買 bonus 63 次，投入與黏著度高，且 GGR 為正替莊家帶來收益，屬高價值。但最高餘額曾達 25 萬卻跌至 8200，且近段平均押注由 520 降到 310，已 11 天未下注，出現初期流失訊號，建議介入挽留。"}
+{
+  "value_score":84,
+  "tier":"高價值",
+  "churn_risk":"medium",
+  "reasoning":"該玩家累積押注達 185 萬、平均單注 462，且購買 bonus 高達 63 次，投入與黏著度極高。同時 GGR 為 107,300，為營運方帶來實質收益，毫無疑問屬於高價值玩家。然而，近期出現明顯的流失風險訊號：最高餘額曾達 25 萬卻跌至 8,200，可能產生強烈剝奪感。此外，近段平均押注由 520 顯著降到 310，且已 11 天未下注。建議盡速發放專屬體驗金或高額返水，以挽回其遊戲意願。",
+  "key_signals": ["近期押注由 520 降至 310", "最高餘額 25 萬跌至 8,200", "已 11 天未下注"],
+  "suggested_action": "盡速發放專屬體驗金或高額返水進行挽回"
+}
+`;
+
+const SYSTEM_SEGMENTS = `
+你是一位資深博弈營運分析師。你會收到一份「玩家分群彙總」(JSON)，含高價值、中階、休閒
+三個分群各自的統計指標。請做跨群比較與營運診斷，語氣專業、務實、聚焦可行動。
+
+【欄位定義】每個分群包含：
+- headcount：人數
+- avgBet：群體平均單注
+- totalBet：群體總押注額
+- ggr：群體毛收益（總押 − 總贏，正值＝替莊家賺）
+- rtp：返還率%
+- hitRate / winRate：中獎率 / 淨贏率%
+- bonusRate / respinRate：觸發特色 / Respin 比例%
+- avgDuration：人均遊戲時長(分)
+- avgBets：人均下注次數
+- avgStartBalance / avgEndBalance：人均進/出場餘額
+
+【你要分析】
+1. 收益結構：哪一群貢獻最多 GGR？營收是否過度集中在少數高價值玩家（集中度風險）？用數字佐證。
+2. 各群健康度：從 rtp、avgDuration、avgBets 判斷每群的體驗與黏著，指出異常。
+3. 風險訊號：例如某群 rtp 偏高(玩家在贏、侵蝕利潤)、時長/次數偏低(快速流失)、進出場餘額落差大等。
+4. 可行動建議：針對每群各給 1 個具體營運方向(挽留 / 拉高 ARPU / 轉化升級)，要能直接執行。
+
+【誠實原則】只依收到的彙總推論，不得編造數字；這是輔助診斷非精算結論；不確定處要明說。
+
+【輸出格式】只輸出 JSON，不要多餘文字、不要 markdown 圍欄：
+{
+  "headline": "<一句話點出最關鍵發現>",
+  "revenue_concentration": "<營收集中度判斷，含數字依據，3-4 句>",
+  "segments": [
+    {"name":"高價值","health":"good|watch|risk","insight":"<3-5 句，含數字>","action":"<1 個可直接執行的建議>"},
+    {"name":"中階","health":"...","insight":"...","action":"..."},
+    {"name":"休閒","health":"...","insight":"...","action":"..."}
+  ],
+  "top_risks": ["<風險1，含依據>","<風險2>","<風險3>"]
+}
+`;
+
+const SYSTEM_OVERVIEW = `
+你是博弈營運的數據顧問。你會收到一份完整快照：三個分群的彙總指標，外加 Top N 玩家清單。
+請產出一份精簡但有洞察的「營運健康度報告」，語氣像顧問對營運主管簡報。
+
+【輸入】
+- segments：高價值/中階/休閒 三群彙總（欄位同分群分析）
+- top_players：[{account, avgBet, totalBetAmount, ggr, bets}, ...]，依總押注排序
+
+【你要產出】
+1. 整體狀況：一句話總結這批資料的核心結論。
+2. 收益來源：GGR 主要來自哪群 / 哪幾位玩家？VIP 依賴 / 集中度風險如何？用數字說。
+3. Top 玩家觀察：點名 2-3 位值得特別關注者（超高貢獻者，或 ggr 為負＝這位在贏錢、需留意）。
+4. 三群各一個可行動建議。
+5. 最該警惕的 2-3 件事。
+
+【誠實原則】只依資料推論、不編造；集中度/風險是啟發式判斷非精算；資料有限要明說。
+
+【輸出格式】只輸出 JSON，不要多餘文字、不要 markdown 圍欄：
+{
+  "summary": "<整體一句話>",
+  "revenue_source": "<收益來源與集中度，含數字，3-5 句>",
+  "watchlist": [{"account":"<玩家>","why":"<為何關注，含數字>"}],
+  "segment_actions": [{"name":"高價值","action":"..."},{"name":"中階","action":"..."},{"name":"休閒","action":"..."}],
+  "top_risks": ["...","..."]
+}
 `;
 
 // CORS settings - open for localhost during dev, can be locked down in production
@@ -106,14 +185,29 @@ app.use('/analyze', (req, res, next) => {
 
 app.post('/analyze', async (req, res) => {
     try {
-        const features = req.body;
-        if (!features || !features.account) {
-            return res.status(400).json({ error: 'Missing features data' });
+        // 相容舊版：如果直接傳送 { account: ... }，自動轉為 mode="player"
+        let mode = req.body.mode;
+        let payload = req.body.payload;
+
+        if (!mode && req.body.account) {
+            mode = 'player';
+            payload = req.body;
         }
 
+        if (!payload) {
+            return res.status(400).json({ error: 'Missing payload data' });
+        }
+
+        const SYSTEM_MAP = {
+            player: SYSTEM_PLAYER,
+            segments: SYSTEM_SEGMENTS,
+            overview: SYSTEM_OVERVIEW
+        };
+        const systemText = SYSTEM_MAP[mode] || SYSTEM_PLAYER;
+
         const requestPayload = {
-            contents: [{ role: 'user', parts: [{ text: JSON.stringify(features) }] }],
-            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+            contents: [{ role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
+            systemInstruction: { parts: [{ text: systemText }] }
         };
 
         const responseStream = await generativeModel.generateContentStream(requestPayload);
@@ -121,10 +215,10 @@ app.post('/analyze', async (req, res) => {
 
         if (aggregatedResponse.candidates && aggregatedResponse.candidates.length > 0) {
             let aiText = aggregatedResponse.candidates[0].content.parts[0].text;
-            
+
             // Clean up if the model still wrapped in markdown by mistake
             aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-            
+
             const resultObj = JSON.parse(aiText);
             return res.json(resultObj);
         } else {
