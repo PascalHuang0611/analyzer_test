@@ -1053,6 +1053,7 @@
                                 billTime: new Date(row['Bill Time']).getTime(),
                                 betAmount: parseFloat(row['Bet Amount']) || 0,
                                 multiplier: parseFloat(row.Multiplier) || 0,
+                                payout: (row.Payout !== undefined || row.PAYOUT !== undefined) ? (parseFloat(row.Payout || row.PAYOUT) || 0) : ((parseFloat(row['Bet Amount']) || 0) * (parseFloat(row.Multiplier) || 0)),
                                 betPlace: row['Bet Place'] || "",
                                 balance: parseFloat(row.Balance) || 0
                             });
@@ -1169,14 +1170,14 @@
                         us.endBalance = row.balance;
                         us.bets++;
                         us.totalBetAmount += row.betAmount;
-                        us.totalWinAmount += (row.betAmount * row.multiplier);
+                        us.totalWinAmount += row.payout;
                         if (isBuyBonus) {
                             us.buyBonusCount++;
                             if (!us.buyBonusFreqs[row.betAmount]) {
                                 us.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
                             }
                             us.buyBonusFreqs[row.betAmount].count++;
-                            us.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
+                            us.buyBonusFreqs[row.betAmount].win += row.payout;
 
                             const m = row.multiplier;
                             globalBuyBonusMults.add(m);
@@ -1214,7 +1215,7 @@
                                     currStats.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
                                 }
                                 currStats.buyBonusFreqs[row.betAmount].count++;
-                                currStats.buyBonusFreqs[row.betAmount].win += (row.betAmount * row.multiplier);
+                                currStats.buyBonusFreqs[row.betAmount].win += row.payout;
 
                                 const m = row.multiplier;
                                 globalBuyBonusMults.add(m);
@@ -1233,7 +1234,7 @@
                         [stats[seg], stats['總計']].forEach(currStats => {
                             currStats.users.add(row.account);
                             currStats.totalBetAmount += row.betAmount;
-                            currStats.totalWinAmount += (row.betAmount * row.multiplier);
+                            currStats.totalWinAmount += row.payout;
                             currStats.totalBets++;
                             if (!isBuyBonus) {
                                 currStats.baseBets++;
@@ -1447,7 +1448,7 @@
                     playerBets.forEach((row, index) => {
                         labels.push(`第${index + 1}局`);
                         
-                        const rawWin = row.betAmount * row.multiplier;
+                        const rawWin = row.payout;
                         betDataRaw.push(row.betAmount);
                         winDataRaw.push(rawWin);
                         
@@ -1472,7 +1473,7 @@
                         lastTime = row.billTime;
 
                         cumBet += row.betAmount;
-                        cumWin += (row.betAmount * row.multiplier);
+                        cumWin += row.payout;
 
                         const rtp = cumBet > 0 ? (cumWin / cumBet) * 100 : 0;
                         rtpData.push(rtp);
@@ -1850,7 +1851,7 @@
                         }
                         currentSession.bets++;
                         currentSession.total_bet += playerBets[i].betAmount;
-                        currentSession.total_win += playerBets[i].betAmount * playerBets[i].multiplier;
+                        currentSession.total_win += playerBets[i].payout;
                     }
                     currentSession.end_balance = playerBets[playerBets.length - 1].balance;
                     currentSession.avg_bet = Number((currentSession.total_bet / currentSession.bets).toFixed(2));
