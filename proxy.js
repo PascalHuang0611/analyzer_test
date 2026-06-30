@@ -63,10 +63,12 @@ const SYSTEM_PLAYER = `
 拉高分數：total_staked 與 avg_bet 高（投入大）、total_bets 與 sessions 多且 play_span 長而持續（黏著穩定）、
 ggr 為正且可觀、buy_bonus_count 高（高投入意願）。
 ※ 注意：此處 ggr 僅指玩家在「我們遊戲」的盈虧，不包含 external_change（玩家在別款遊戲的輸贏）。
+※ 破例原則（重要）：若玩家 total_staked 極高但 ggr 為負（大戶正在贏錢），其潛在價值依然極高。大額玩家的盈虧長期會回歸，切勿僅因莊家短期虧損就低估大戶價值。
 拉低分數：押注小、次數少、只玩一兩場、樣本太薄。
 對照分級：高價值 ≈ 75-100、中階 ≈ 40-74、休閒 ≈ 0-39（可依整體判斷微調）。
 
 【如何判斷「流失風險」churn_risk（low / medium / high）】
+以下為各種流失模式，不需全部命中；請依該玩家最突出的 2-3 個訊號綜合判斷，並在 reasoning 點出最關鍵者。
 風險訊號（越多越高）：
 - days_since_last_bet 偏大：基準是「資料結束日 data_end」而非今天。
   若玩家 player_last_bet 已接近 data_end（days_since_last_bet 很小），不可判為流失——資料就到這裡，無法得知之後狀況。
@@ -74,10 +76,12 @@ ggr 為正且可觀、buy_bonus_count 高（高投入意願）。
 - session_trend 最近幾段的押注趨勢走弱。若 end_balance 走低，務必區分兩種成因，流失含義不同：
   (a) 該 session 自身 ggr 為大額負值 → 玩家在「我們遊戲」輸光，與我方體驗/黏著直接相關。
   (b) 該 session external_change 為大額負值 → 玩家在「別款遊戲」輸了錢才回流，非我方造成，但會影響其下注心理。
-- 挫折性流失（新版重點）：若某 session 的 external_change 為大額負值（在別處重大虧損後回流），
-  且回流後 avg_bet 明顯縮水或很快離開 → 屬高流失風險，建議發放體驗金安撫情緒、留住玩家。
+- 挫折性流失（重點）：若某 session 的 external_change 為大額負值（在別處重大虧損後回流），
+  且回流後 avg_bet 明顯縮水或很快離開 → 屬高流失風險，建議發放體驗金安撫情緒。
+- 暴富後回吐流失（重點）：若 external_change 為大額正值（別處贏大錢），且隨後在我們遊戲大幅提高 avg_bet。一旦這筆錢在我們遊戲快速回吐，極易引發高流失風險。
+- 體驗疲勞流失：若玩家 total_bets 極多但 rtp_pct 極低，代表長期未中大獎，這種「怎麼玩都不會開」的枯燥感與持續失血是高流失警訊。
 - 場次集中在早期、接近 data_end 的時段沒有新場次（同樣以 data_end 為近期基準，而非今天）。
-- max_balance 很高但最近的 end_balance 很低（曾大幅領先卻回吐，容易產生剝奪感而流失）。
+- max_balance 很高但最近的 end_balance 很低（曾大幅領先卻回吐，容易產生剝奪感而憤而流失）。
 注意：end_balance 接近 0 不必然＝流失，玩家可能會再儲值；請在 reasoning 說明你的假設，並對接近資料邊界的玩家結論趨保守。
 
 【誠實原則（務必遵守）】
