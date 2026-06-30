@@ -1413,9 +1413,25 @@
                     const balanceData = [];
                     const timeData = [];
                     const winData = [];
+                    const betDataRaw = [];
+                    const winDataRaw = [];
                     const pointStyles = [];
                     const pointRadii = [];
                     const pointColors = [];
+                    
+                    const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700];
+                    const mapToCatIndex = (val) => {
+                        if (val <= 0) return 0;
+                        if (val >= 1700) return 11;
+                        for (let i = 0; i < catLevels.length - 1; i++) {
+                            if (val >= catLevels[i] && val <= catLevels[i+1]) {
+                                const range = catLevels[i+1] - catLevels[i];
+                                const ratio = (val - catLevels[i]) / range;
+                                return i + ratio;
+                            }
+                        }
+                        return 11;
+                    };
 
                     let currentSessionId = 0;
                     let lastTime = 0;
@@ -1430,7 +1446,13 @@
 
                     playerBets.forEach((row, index) => {
                         labels.push(`第${index + 1}局`);
-                        betData.push(row.betAmount);
+                        
+                        const rawWin = row.betAmount * row.multiplier;
+                        betDataRaw.push(row.betAmount);
+                        winDataRaw.push(rawWin);
+                        
+                        betData.push(mapToCatIndex(row.betAmount));
+                        winData.push(mapToCatIndex(rawWin));
                         
                         // 時間字串
                         const d = new Date(row.billTime);
@@ -1468,7 +1490,7 @@
                     });
                     sessionBounds.push(currentBound);
 
-                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, pointStyles, pointRadii, pointColors, sessionBounds };
+                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, betDataRaw, winDataRaw, pointStyles, pointRadii, pointColors, sessionBounds };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1596,8 +1618,20 @@
                                     type: 'linear',
                                     position: 'right',
                                     reverse: true,
+                                    min: 0,
+                                    max: 11,
                                     title: { display: true, text: 'Bet / Win Amount', color: '#818cf8' },
-                                    ticks: { color: '#818cf8' },
+                                    ticks: { 
+                                        color: '#818cf8',
+                                        stepSize: 1,
+                                        callback: function(value) {
+                                            const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700];
+                                            if (Number.isInteger(value) && value >= 0 && value <= 11) {
+                                                return catLevels[value];
+                                            }
+                                            return null;
+                                        }
+                                    },
                                     grid: { drawOnChartArea: false },
                                     beginAtZero: true
                                 }
@@ -1612,7 +1646,7 @@
                                             const absoluteIdx = sIdx + idx;
                                             const lines = ['時間: ' + sliceData(chartCache.timeData)[idx]];
                                             
-                                            const winAmt = sliceData(chartCache.winData)[idx];
+                                            const winAmt = sliceData(chartCache.winDataRaw)[idx];
                                             lines.push(`該局贏分: ${winAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
                                             
                                             if (chartCache.sessionBounds) {
@@ -1630,16 +1664,16 @@
                                                 label += context.parsed.y.toFixed(2) + '%';
                                             } else if (context.dataset.yAxisID === 'yBalance') {
                                                 label += context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                            } else {
-                                                label += context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                            } else if (context.dataset.yAxisID === 'yBet') {
+                                                const absoluteIdx = sIdx + context.dataIndex;
+                                                const isBet = context.dataset.label === '單局押注金額';
+                                                const rawVal = isBet ? chartCache.betDataRaw[absoluteIdx] : chartCache.winDataRaw[absoluteIdx];
+                                                label += rawVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                
+                                                if (isBet && [85, 170, 850, 1700].includes(rawVal)) {
+                                                    label += ' (購買 Bonus)';
+                                                }
                                             }
-
-                                            // 判斷是否為購買特色 (根據該局的押注額)
-                                            const amt = Number(currentBetData[context.dataIndex]);
-                                            if ([85, 170, 850, 1700].includes(amt)) {
-                                                label += ' (購買 Bonus)';
-                                            }
-
                                             return label;
                                         }
                                     }
