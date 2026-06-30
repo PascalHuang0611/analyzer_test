@@ -47,7 +47,11 @@ const SYSTEM_PLAYER = `
 - play_span_days：從第一筆到最後一筆注單跨越的天數
 - days_since_last_bet：距今幾天沒下注（recency，流失最直接的訊號）
 - early_avg_bet / late_avg_bet：歷程前段 vs 後段的平均押注（看下注規模是放大還是縮手）
-- bet_trend_10buckets：把歷程平均切成 10 段，每段的平均押注與結束餘額（看走勢形狀）
+- session_trend：按遊玩區段(間隔>30分鐘)拆分的歷程陣列，每段含 bets(局數)、avg_bet、ggr(此段在「我們遊戲」的實際輸贏)、start_balance、end_balance、external_change。
+  external_change = 本段進場餘額 − 上一段離場餘額，代表「跨遊戲的資金變動」：
+    * 負值且絕對值大 → 玩家中途跑去玩別款遊戲輸了錢（此虧損不算我們的 GGR）。
+    * 正值且絕對值大 → 玩家在別處贏錢或儲值後回來。
+  量化判斷標準：當某段 external_change 的絕對值 > 該段 avg_bet 的 10 倍（或 > 上一段 end_balance 的 30%），即視為「顯著跨遊戲資金變動」，需在分析中指出，並評估它對玩家後續下注心理的影響（例如別處輸錢後回來押注縮水＝挫折性流失風險）。
 - max_balance: 歷程中的最高餘額（曾經贏到的最高點）
 - max_bet_amount: 歷程中下過的最大注碼
 
@@ -61,7 +65,7 @@ ggr 為正且可觀（實際帶來收益）、buy_bonus_count 高（高投入意
 風險訊號（越多越高）：
 - days_since_last_bet 偏大（要相對於他的 play_span 與場次頻率來看，而非絕對天數）
 - late_avg_bet 明顯低於 early_avg_bet（開始縮手）
-- bet_trend_10buckets 後段押注下滑，或 end_balance 一路跌到接近 0（可能輸光本金）
+- session_trend 後段押注持續下滑，或最近的 end_balance 跌到接近 0（在我們遊戲或別的遊戲輸光本金）
 - 場次集中在早期、近期沒有新場次
 - max_balance 很高但 end_balance 很低（贏了沒跑結果輸回去，容易挫折流失）
 注意：end_balance 接近 0 不必然＝流失，玩家可能會再儲值；請在 reasoning 說明你的假設。
@@ -93,16 +97,19 @@ ggr 為正且可觀（實際帶來收益）、buy_bonus_count 高（高投入意
   "play_span_days":120,"days_since_last_bet":11,
   "early_avg_bet":520,"late_avg_bet":310,
   "max_balance":250000,"max_bet_amount":1700,
-  "bet_trend_10buckets":[{"avg_bet":540,"end_balance":62000},{"avg_bet":300,"end_balance":8200}]
+  "session_trend":[
+    {"bets":25,"avg_bet":540,"ggr":-12000,"start_balance":50000,"end_balance":62000,"external_change":0},
+    {"bets":22,"avg_bet":300,"ggr":3000,"start_balance":15000,"end_balance":8200,"external_change":-47000}
+  ]
 }
 理想輸出：
 {
   "value_score":84,
   "tier":"高價值",
   "churn_risk":"medium",
-  "reasoning":"該玩家累積押注達 185 萬、平均單注 462，且購買 bonus 高達 63 次，投入與黏著度極高。同時 GGR 為 107,300，為營運方帶來實質收益，毫無疑問屬於高價值玩家。然而，近期出現明顯的流失風險訊號：最高餘額曾達 25 萬卻跌至 8,200，可能產生強烈剝奪感。此外，近段平均押注由 520 顯著降到 310，且已 11 天未下注。建議盡速發放專屬體驗金或高額返水，以挽回其遊戲意願。",
-  "key_signals": ["近期押注由 520 降至 310", "最高餘額 25 萬跌至 8,200", "已 11 天未下注"],
-  "suggested_action": "盡速發放專屬體驗金或高額返水進行挽回"
+  "reasoning":"該玩家累積押注達 185 萬、平均單注 462，且購買 bonus 高達 63 次，投入與黏著度極高。同時 GGR 為 107,300，為營運方帶來實質收益，毫無疑問屬於高價值玩家。然而，該玩家於第二段回流時資金驟減 47,000（external_change），顯示其在別款遊戲遭受重大損失，回流後押注由 540 縮水至 300，且已 11 天未下注，屬挫折性流失高風險。建議盡速發放專屬體驗金或高額返水安撫。",
+  "key_signals": ["別款遊戲大幅輸錢 (外部資金驟降 47,000)", "近期押注由 540 縮水至 300", "已 11 天未下注"],
+  "suggested_action": "發放專屬體驗金安撫挫折感並挽回"
 }
 `;
 

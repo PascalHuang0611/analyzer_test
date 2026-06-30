@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Coins - 注單深度分析工具 v1.5</title>
+    <title>Lucky Coins - 注單深度分析工具 v1.7.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -176,7 +176,7 @@
                         <span style="font-family: 'Noto Sans TC', sans-serif;" class="text-3xl ml-1">分析儀表板</span>
                     </div>
                     <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold"
-                        style="font-family: 'Inter', sans-serif;">v1.6.0</span>
+                        style="font-family: 'Inter', sans-serif;">v1.7.0</span>
                 </h1>
                 <p class="animate-subtitle text-gray-400 mt-3">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -1321,9 +1321,17 @@
                     const betData = [];
                     const rtpData = [];
                     const balanceData = [];
+                    const timeData = [];
                     const pointStyles = [];
                     const pointRadii = [];
                     const pointColors = [];
+
+                    let currentSessionId = 0;
+                    let lastTime = 0;
+                    // 使用非常微弱的底色來區分 session
+                    const sessionColors = ['rgba(255, 255, 255, 0.0)', 'rgba(255, 255, 255, 0.08)'];
+                    const sessionBounds = [];
+                    let currentBound = { start: 0, end: 0, color: sessionColors[0] };
 
                     let cumBet = 0;
                     let cumWin = 0;
@@ -1332,6 +1340,21 @@
                     playerBets.forEach((row, index) => {
                         labels.push(`第${index + 1}局`);
                         betData.push(String(row.betAmount));
+                        
+                        // 時間字串
+                        const d = new Date(row.billTime);
+                        const timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                        timeData.push(timeStr);
+
+                        // 切割 Session
+                        if (lastTime > 0 && row.billTime - lastTime > 30 * 60 * 1000) {
+                            currentBound.end = index - 1;
+                            sessionBounds.push(currentBound);
+                            currentSessionId++;
+                            currentBound = { start: index, end: index, color: sessionColors[currentSessionId % sessionColors.length] };
+                        }
+                        currentBound.end = index;
+                        lastTime = row.billTime;
 
                         cumBet += row.betAmount;
                         cumWin += (row.betAmount * row.multiplier);
@@ -1350,8 +1373,9 @@
                             pointColors.push('#38bdf8'); // sky-400
                         }
                     });
+                    sessionBounds.push(currentBound);
 
-                    chartCache = { labels, betData, rtpData, balanceData, pointStyles, pointRadii, pointColors };
+                    chartCache = { labels, betData, rtpData, balanceData, timeData, pointStyles, pointRadii, pointColors, sessionBounds };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1373,6 +1397,34 @@
                     const currentBetData = sliceData(chartCache.betData);
 
                     if (chartInstance) chartInstance.destroy();
+
+                    const sessionBackgroundPlugin = {
+                        id: 'sessionBackground',
+                        beforeDraw: (chart) => {
+                            const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+                            const bounds = chart.config.options.plugins.sessionBackground?.bounds;
+                            if (!bounds) return;
+
+                            ctx.save();
+                            bounds.forEach(b => {
+                                if (b.end < sIdx || b.start >= eIdx) return;
+                                
+                                const drawStartIdx = Math.max(sIdx, b.start) - sIdx;
+                                const drawEndIdx = Math.min(eIdx - 1, b.end) - sIdx;
+                                
+                                const startX = x.getPixelForValue(drawStartIdx);
+                                const endX = x.getPixelForValue(drawEndIdx);
+                                
+                                const tickWidth = (x.getPixelForValue(1) - x.getPixelForValue(0)) || 0;
+                                const leftX = startX - tickWidth / 2;
+                                const rightX = endX + tickWidth / 2;
+
+                                ctx.fillStyle = b.color;
+                                ctx.fillRect(leftX, top, rightX - leftX, bottom - top);
+                            });
+                            ctx.restore();
+                        }
+                    };
 
                     chartInstance = new Chart(ctx, {
                         type: 'line',
@@ -1448,9 +1500,23 @@
                                 }
                             },
                             plugins: {
+                                sessionBackground: { bounds: chartCache.sessionBounds },
                                 legend: { labels: { color: '#e2e8f0' } },
                                 tooltip: {
                                     callbacks: {
+                                        afterTitle: function(context) {
+                                            const idx = context[0].dataIndex;
+                                            const absoluteIdx = sIdx + idx;
+                                            const lines = ['時間: ' + sliceData(chartCache.timeData)[idx]];
+                                            
+                                            if (chartCache.sessionBounds) {
+                                                const session = chartCache.sessionBounds.find(b => absoluteIdx >= b.start && absoluteIdx <= b.end);
+                                                if (session) {
+                                                    lines.push(`此階段 (Session) 遊玩長度: ${session.end - session.start + 1} 局`);
+                                                }
+                                            }
+                                            return lines;
+                                        },
                                         label: function (context) {
                                             let label = context.dataset.label || '';
                                             if (label) label += ': ';
@@ -1473,7 +1539,8 @@
                                     }
                                 }
                             }
-                        }
+                        },
+                        plugins: [sessionBackgroundPlugin]
                     });
                 };
 
@@ -1615,12 +1682,57 @@
                     const earlyAvg = earlyBets.length > 0 ? earlyBets.reduce((sum, b) => sum + b.betAmount, 0) / earlyBets.length : 0;
                     const lateAvg = lateBets.length > 0 ? lateBets.reduce((sum, b) => sum + b.betAmount, 0) / lateBets.length : 0;
 
-                    // Sessions (interval > 30 mins)
+                    // Sessions (interval > 30 mins) and Session Trend
+                    const session_trend = [];
+                    let currentSession = { start_balance: playerBets[0].balance, bets: 0, total_bet: 0, total_win: 0 };
+                    let prevEnd = null;            // 上一個 session 的 end_balance
                     let sessions = 1;
-                    for (let i = 1; i < playerBets.length; i++) {
-                        if (playerBets[i].billTime - playerBets[i - 1].billTime > 30 * 60 * 1000) {
+
+                    const pushSession = (s) => {
+                        session_trend.push({
+                            bets: s.bets,
+                            avg_bet: s.avg_bet,
+                            ggr: s.ggr,
+                            start_balance: s.start_balance,
+                            end_balance: s.end_balance,
+                            external_change: prevEnd === null ? 0 : (s.start_balance - prevEnd)
+                        });
+                        prevEnd = s.end_balance;
+                    };
+                    
+                    for (let i = 0; i < playerBets.length; i++) {
+                        if (i > 0 && playerBets[i].billTime - playerBets[i - 1].billTime > 30 * 60 * 1000) {
+                            currentSession.end_balance = playerBets[i - 1].balance;
+                            currentSession.avg_bet = Math.round(currentSession.total_bet / currentSession.bets);
+                            currentSession.ggr = currentSession.total_bet - currentSession.total_win;
+                            pushSession(currentSession);
                             sessions++;
+                            currentSession = { start_balance: playerBets[i].balance, bets: 0, total_bet: 0, total_win: 0 };
                         }
+                        currentSession.bets++;
+                        currentSession.total_bet += playerBets[i].betAmount;
+                        currentSession.total_win += playerBets[i].betAmount * playerBets[i].multiplier;
+                    }
+                    currentSession.end_balance = playerBets[playerBets.length - 1].balance;
+                    currentSession.avg_bet = Math.round(currentSession.total_bet / currentSession.bets);
+                    currentSession.ggr = currentSession.total_bet - currentSession.total_win;
+                    pushSession(currentSession);
+
+                    // 截斷邏輯 MAX_SESSIONS = 15
+                    const MAX_SESSIONS = 15;
+                    let final_session_trend = session_trend;
+                    if (session_trend.length > MAX_SESSIONS) {
+                        const recentSessions = session_trend.slice(-MAX_SESSIONS);
+                        const oldSessions = session_trend.slice(0, session_trend.length - MAX_SESSIONS);
+                        const oldSummary = {
+                            bets: oldSessions.reduce((sum, s) => sum + s.bets, 0),
+                            avg_bet: Math.round(oldSessions.reduce((sum, s) => sum + (s.avg_bet * s.bets), 0) / oldSessions.reduce((sum, s) => sum + s.bets, 0)),
+                            ggr: oldSessions.reduce((sum, s) => sum + s.ggr, 0),
+                            start_balance: oldSessions[0].start_balance,
+                            end_balance: oldSessions[oldSessions.length - 1].end_balance,
+                            external_change: 0 // 早期彙總不適用此欄位
+                        };
+                        final_session_trend = [oldSummary, ...recentSessions];
                     }
 
                     // Play span and recency
@@ -1636,21 +1748,6 @@
                         if (b.balance > maxBalance) maxBalance = b.balance;
                         if (b.betAmount > maxBetAmount) maxBetAmount = b.betAmount;
                     });
-
-                    // 10 buckets
-                    const bucketCount = 10;
-                    const bucketSize = Math.ceil(playerBets.length / bucketCount);
-                    const bet_trend_10buckets = [];
-                    for (let i = 0; i < bucketCount; i++) {
-                        const chunk = playerBets.slice(i * bucketSize, (i + 1) * bucketSize);
-                        if (chunk.length > 0) {
-                            const chunkAvg = chunk.reduce((sum, b) => sum + b.betAmount, 0) / chunk.length;
-                            bet_trend_10buckets.push({
-                                avg_bet: Math.round(chunkAvg),
-                                end_balance: chunk[chunk.length - 1].balance
-                            });
-                        }
-                    }
 
                     return {
                         account: account,
@@ -1671,7 +1768,7 @@
                         late_avg_bet: Math.round(lateAvg),
                         max_balance: maxBalance,
                         max_bet_amount: maxBetAmount,
-                        bet_trend_10buckets: bet_trend_10buckets
+                        session_trend: final_session_trend
                     };
                 };
 
