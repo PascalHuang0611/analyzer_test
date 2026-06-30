@@ -1417,6 +1417,7 @@
                     const betDataRaw = [];
                     const winDataRaw = [];
                     const buyBonusRtpData = [];
+                    const naturalBonusRtpData = [];
                     
                     const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700, 10000];
                     const mapToCatIndex = (val) => {
@@ -1474,15 +1475,39 @@
                         rtpData.push(rtp);
                         balanceData.push(row.balance);
 
+                        let isNaturalBonus = false;
+                        if (!buyBonusAmounts.includes(row.betAmount) && row.betPlace && row.betPlace !== "") {
+                            try {
+                                let str = row.betPlace;
+                                let parsed = [];
+                                if (str.includes('],[')) {
+                                    parsed = JSON.parse(`[${str}]`);
+                                } else {
+                                    parsed = [JSON.parse(str)];
+                                }
+                                for (let arr of parsed) {
+                                    if (arr && arr.length >= 4) {
+                                        if (arr[3] === 6 || arr[3] === 7) isNaturalBonus = true;
+                                    }
+                                }
+                            } catch (e) { }
+                        }
+
                         if (buyBonusAmounts.includes(row.betAmount)) {
                             buyBonusRtpData.push(rtp);
                         } else {
                             buyBonusRtpData.push(null);
                         }
+
+                        if (isNaturalBonus) {
+                            naturalBonusRtpData.push(rtp);
+                        } else {
+                            naturalBonusRtpData.push(null);
+                        }
                     });
                     sessionBounds.push(currentBound);
 
-                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, betDataRaw, winDataRaw, buyBonusRtpData, sessionBounds };
+                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, betDataRaw, winDataRaw, buyBonusRtpData, naturalBonusRtpData, sessionBounds };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1597,6 +1622,19 @@
                                     borderColor: '#fdf4ff',
                                     borderWidth: 1.5,
                                     order: 0
+                                },
+                                {
+                                    label: '自然觸發 Bonus 標記',
+                                    data: sliceData(chartCache.naturalBonusRtpData),
+                                    type: 'line',
+                                    yAxisID: 'yRTP',
+                                    showLine: false,
+                                    pointStyle: 'star', // 星星形狀
+                                    pointRadius: 8,
+                                    backgroundColor: '#10b981', // emerald-500
+                                    borderColor: '#ecfdf5',
+                                    borderWidth: 1.5,
+                                    order: 0
                                 }
                             ]
                         },
@@ -1646,7 +1684,7 @@
                                     mode: 'index',
                                     intersect: false,
                                     filter: function(tooltipItem) {
-                                        return tooltipItem.dataset.label !== '購買 Bonus 標記';
+                                        return tooltipItem.dataset.label !== '購買 Bonus 標記' && tooltipItem.dataset.label !== '自然觸發 Bonus 標記';
                                     },
                                     callbacks: {
                                         afterTitle: function(context) {
