@@ -482,10 +482,6 @@
                                 {{ showBuyBonusDetails ? '隱藏詳細佔比' : '顯示詳細佔比' }}
                             </button>
                         </div>
-                        <div v-if="analyzedData" class="text-sm flex gap-4 bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
-                            <div :title="`${analyzedData['總計'].buyBonusSummary.count.toLocaleString()} / ${analyzedData['總計'].buyBonusSummary.totalBets.toLocaleString()}`"><span class="text-gray-400">注單佔比:</span> <span class="font-bold text-white">{{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</span></div>
-                            <div :title="`${analyzedData['總計'].buyBonusSummary.winAmount.toFixed(0)} / ${analyzedData['總計'].buyBonusSummary.totalWinAmount.toFixed(0)}`"><span class="text-gray-400">RTP 佔比:</span> <span class="font-bold text-green-400">{{ analyzedData['總計'].buyBonusSummary.rtpRatio.toFixed(2) }}%</span></div>
-                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-center border-collapse">
@@ -507,26 +503,24 @@
                                         :class="{'text-indigo-400': seg==='高價值玩家', 'text-cyan-400': seg==='中階玩家', 'text-gray-400': seg==='休閒玩家'}">
                                         {{ seg }}</td>
                                     
-                                    <td class="p-4 bg-purple-900/20">
+                                    <td class="p-4 bg-purple-900/20" :title="getBuyBonusTooltip(analyzedData[seg].buyBonusSummary)">
                                         <div class="font-bold text-purple-300">{{ analyzedData[seg].buyBonusSummary.count.toLocaleString() }}</div>
                                         <div v-if="analyzedData[seg].buyBonusSummary.count > 0 && showBuyBonusDetails">
-                                            <div class="text-[11px] text-gray-400 mt-1" :title="`${analyzedData[seg].buyBonusSummary.count.toLocaleString()} / ${analyzedData[seg].buyBonusSummary.totalBets.toLocaleString()}`">注單數佔比: {{ analyzedData[seg].buyBonusSummary.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-400" :title="`${analyzedData[seg].buyBonusSummary.betAmount.toFixed(0)} / ${analyzedData[seg].buyBonusSummary.totalBetAmount.toFixed(0)}`">總押額佔比: {{ analyzedData[seg].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-green-400" :title="`${analyzedData[seg].buyBonusSummary.winAmount.toFixed(0)} / ${analyzedData[seg].buyBonusSummary.totalWinAmount.toFixed(0)}`">RTP 佔比: {{ analyzedData[seg].buyBonusSummary.rtpRatio.toFixed(2) }}%</div>
-                                            <div class="text-xs mt-1" :class="analyzedData[seg].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'" :title="`${analyzedData[seg].buyBonusSummary.winAmount.toFixed(0)} / ${analyzedData[seg].buyBonusSummary.betAmount.toFixed(0)}`">
+                                            <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData[seg].buyBonusSummary.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData[seg].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="analyzedData[seg].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 總 RTP: {{ analyzedData[seg].buyBonusSummary.rtp.toFixed(2) }}%
                                             </div>
                                         </div>
                                         <div v-else-if="analyzedData[seg].buyBonusSummary.count === 0" class="text-[11px] text-gray-500 mt-1">無購買紀錄</div>
                                     </td>
 
-                                    <td v-for="item in analyzedData[seg].buyBonusFreqs" :key="item.amount" class="p-4">
+                                    <td v-for="item in analyzedData[seg].buyBonusFreqs" :key="item.amount" class="p-4" :title="getBuyBonusTooltip(item)">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
                                         <div v-if="item.count > 0 && showBuyBonusDetails" class="mt-1">
-                                            <div class="text-[11px] text-gray-500" :title="`${item.count.toLocaleString()} / ${item.totalBets.toLocaleString()}`">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-500" :title="`${item.betAmount.toFixed(0)} / ${item.totalBetAmount.toFixed(0)}`">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-green-500 mb-1" :title="`${item.winAmount.toFixed(0)} / ${item.totalWinAmount.toFixed(0)}`">RTP佔: {{ item.rtpRatio.toFixed(2) }}%</div>
-                                            <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'" :title="`${item.winAmount.toFixed(0)} / ${item.betAmount.toFixed(0)}`">
+                                            <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 RTP: {{ item.rtp.toFixed(2) }}%
                                             </div>
                                         </div>
@@ -536,26 +530,24 @@
                                     @click="selectedBonusSegment = '總計'">
                                     <td class="p-4 whitespace-nowrap">總和</td>
 
-                                    <td class="p-4 bg-purple-900/20">
+                                    <td class="p-4 bg-purple-900/20" :title="getBuyBonusTooltip(analyzedData['總計'].buyBonusSummary)">
                                         <div class="font-bold text-purple-300">{{ analyzedData['總計'].buyBonusSummary.count.toLocaleString() }}</div>
                                         <div v-if="analyzedData['總計'].buyBonusSummary.count > 0 && showBuyBonusDetails">
-                                            <div class="text-[11px] text-gray-400 mt-1" :title="`${analyzedData['總計'].buyBonusSummary.count.toLocaleString()} / ${analyzedData['總計'].buyBonusSummary.totalBets.toLocaleString()}`">注單數佔比: {{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-400" :title="`${analyzedData['總計'].buyBonusSummary.betAmount.toFixed(0)} / ${analyzedData['總計'].buyBonusSummary.totalBetAmount.toFixed(0)}`">總押額佔比: {{ analyzedData['總計'].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-green-400" :title="`${analyzedData['總計'].buyBonusSummary.winAmount.toFixed(0)} / ${analyzedData['總計'].buyBonusSummary.totalWinAmount.toFixed(0)}`">RTP 佔比: {{ analyzedData['總計'].buyBonusSummary.rtpRatio.toFixed(2) }}%</div>
-                                            <div class="text-xs mt-1" :class="analyzedData['總計'].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'" :title="`${analyzedData['總計'].buyBonusSummary.winAmount.toFixed(0)} / ${analyzedData['總計'].buyBonusSummary.betAmount.toFixed(0)}`">
+                                            <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData['總計'].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="analyzedData['總計'].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 總 RTP: {{ analyzedData['總計'].buyBonusSummary.rtp.toFixed(2) }}%
                                             </div>
                                         </div>
                                         <div v-else-if="analyzedData['總計'].buyBonusSummary.count === 0" class="text-[11px] text-gray-500 mt-1">無購買紀錄</div>
                                     </td>
 
-                                    <td v-for="item in analyzedData['總計'].buyBonusFreqs" :key="item.amount" class="p-4">
+                                    <td v-for="item in analyzedData['總計'].buyBonusFreqs" :key="item.amount" class="p-4" :title="getBuyBonusTooltip(item)">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
                                         <div v-if="item.count > 0 && showBuyBonusDetails" class="mt-1">
-                                            <div class="text-[11px] text-gray-500" :title="`${item.count.toLocaleString()} / ${item.totalBets.toLocaleString()}`">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-500" :title="`${item.betAmount.toFixed(0)} / ${item.totalBetAmount.toFixed(0)}`">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-green-500 mb-1" :title="`${item.winAmount.toFixed(0)} / ${item.totalWinAmount.toFixed(0)}`">RTP佔: {{ item.rtpRatio.toFixed(2) }}%</div>
-                                            <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'" :title="`${item.winAmount.toFixed(0)} / ${item.betAmount.toFixed(0)}`">
+                                            <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 RTP: {{ item.rtp.toFixed(2) }}%
                                             </div>
                                         </div>
@@ -953,6 +945,11 @@
                 watch(showBuyBonusDetails, (val) => {
                     localStorage.setItem('luckyCoins_buyBonusDetails', val);
                 });
+
+                const getBuyBonusTooltip = (data) => {
+                    if (!data || data.count === 0) return '';
+                    return `注單數: ${data.count.toLocaleString()} / ${data.totalBets.toLocaleString()}\n總押額: ${data.betAmount.toFixed(0)} / ${data.totalBetAmount.toFixed(0)}\nRTP(贏分/押額): ${data.winAmount.toFixed(0)} / ${data.betAmount.toFixed(0)}`;
+                };
 
                 const chartStart = ref(1);
                 const chartEnd = ref(1);
@@ -1962,7 +1959,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: top }, overviewLoading);
                 };
 
-                return { showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading };
             }
         }).mount('#app');
     </script>
