@@ -1416,9 +1416,7 @@
                     const winData = [];
                     const betDataRaw = [];
                     const winDataRaw = [];
-                    const pointStyles = [];
-                    const pointRadii = [];
-                    const pointColors = [];
+                    const buyBonusRtpData = [];
                     
                     const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700];
                     const mapToCatIndex = (val) => {
@@ -1477,18 +1475,14 @@
                         balanceData.push(row.balance);
 
                         if (buyBonusAmounts.includes(row.betAmount)) {
-                            pointStyles.push('star');
-                            pointRadii.push(8);
-                            pointColors.push('#d946ef'); // fuchsia-500
+                            buyBonusRtpData.push(rtp);
                         } else {
-                            pointStyles.push('circle');
-                            pointRadii.push(2);
-                            pointColors.push('#38bdf8'); // sky-400
+                            buyBonusRtpData.push(null);
                         }
                     });
                     sessionBounds.push(currentBound);
 
-                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, betDataRaw, winDataRaw, pointStyles, pointRadii, pointColors, sessionBounds };
+                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, betDataRaw, winDataRaw, buyBonusRtpData, sessionBounds };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1551,10 +1545,7 @@
                                     yAxisID: 'yRTP',
                                     borderColor: '#38bdf8',
                                     borderWidth: 2,
-                                    pointStyle: sliceData(chartCache.pointStyles),
-                                    pointRadius: sliceData(chartCache.pointRadii),
-                                    pointBackgroundColor: sliceData(chartCache.pointColors),
-                                    pointBorderColor: sliceData(chartCache.pointColors),
+                                    pointRadius: 0, // 移除原本的陣列控制，由獨立的標記 Dataset 負責
                                     tension: 0.4, // 更柔和的貝茲曲線
                                     fill: true,
                                     backgroundColor: 'rgba(56, 189, 248, 0.15)', // 淺藍色半透明漸層底色
@@ -1592,6 +1583,19 @@
                                     pointRadius: 0, // 不顯示點點，讓曲線更乾淨
                                     tension: 0.1,
                                     fill: false,
+                                    order: 0
+                                },
+                                {
+                                    label: '購買 Bonus 標記',
+                                    data: sliceData(chartCache.buyBonusRtpData),
+                                    type: 'line',
+                                    yAxisID: 'yRTP',
+                                    showLine: false,
+                                    pointStyle: 'rectRot', // 鑽石形狀
+                                    pointRadius: 6,
+                                    backgroundColor: '#d946ef',
+                                    borderColor: '#fdf4ff',
+                                    borderWidth: 1.5,
                                     order: 0
                                 }
                             ]
@@ -1639,6 +1643,11 @@
                                 sessionBackground: { bounds: chartCache.sessionBounds },
                                 legend: { labels: { color: '#e2e8f0' } },
                                 tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    filter: function(tooltipItem) {
+                                        return tooltipItem.dataset.label !== '購買 Bonus 標記';
+                                    },
                                     callbacks: {
                                         afterTitle: function(context) {
                                             const idx = context[0].dataIndex;
