@@ -665,6 +665,7 @@
                                 <span class="text-gray-400">~</span>
                                 <!-- Editable Max -->
                                 <input type="number" v-model.number="tempRoundLimits[idx]" 
+                                    @change="validateLimits"
                                     :min="idx === 0 ? 0 : tempRoundLimits[idx - 1] + 1"
                                     class="w-24 bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none" 
                                     placeholder="Max">
@@ -1023,7 +1024,19 @@
                     isEditingRanges.value = true;
                 };
 
+                const validateLimits = () => {
+                    for (let i = 0; i < tempRoundLimits.value.length; i++) {
+                        const prev = i === 0 ? -1 : (tempRoundLimits.value[i - 1] || 0);
+                        const minValid = prev + 1;
+                        let val = parseInt(tempRoundLimits.value[i]);
+                        if (isNaN(val) || val < minValid) {
+                            tempRoundLimits.value[i] = minValid;
+                        }
+                    }
+                };
+
                 const saveRanges = () => {
+                    validateLimits(); // 雙重保險
                     // 防呆機制：過濾不合法的數字、去重複、並自動由小到大排序
                     const validLimits = [...new Set(tempRoundLimits.value.map(Number))]
                         .filter(x => !isNaN(x) && x >= 0)
@@ -2234,7 +2247,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
-                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, saveRanges, resetRanges, addRange, removeRange };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange };
             }
         }).mount('#app');
     </script>
