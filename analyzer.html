@@ -1430,7 +1430,7 @@
 
                     playerBets.forEach((row, index) => {
                         labels.push(`第${index + 1}局`);
-                        betData.push(String(row.betAmount));
+                        betData.push(row.betAmount);
                         
                         // 時間字串
                         const d = new Date(row.billTime);
@@ -1551,6 +1551,16 @@
                                     order: 2
                                 },
                                 {
+                                    label: '單局贏分',
+                                    data: sliceData(chartCache.winData),
+                                    type: 'bar',
+                                    yAxisID: 'yBet',
+                                    backgroundColor: 'rgba(234, 179, 8, 0.4)', // yellow-500
+                                    borderColor: '#eab308',
+                                    borderWidth: 1,
+                                    order: 3
+                                },
+                                {
                                     label: '玩家餘額 (Balance)',
                                     data: sliceData(chartCache.balanceData),
                                     type: 'line',
@@ -1583,13 +1593,13 @@
                                     grid: { drawOnChartArea: false }
                                 },
                                 yBet: {
-                                    type: 'category',
-                                    labels: ['0', '1', '5', '10', '50', '85', '100', '170', '500', '850', '1000', '1700'],
+                                    type: 'linear',
                                     position: 'right',
                                     reverse: true,
-                                    title: { display: true, text: 'Bet Amount', color: '#818cf8' },
+                                    title: { display: true, text: 'Bet / Win Amount', color: '#818cf8' },
                                     ticks: { color: '#818cf8' },
-                                    grid: { drawOnChartArea: false }
+                                    grid: { drawOnChartArea: false },
+                                    beginAtZero: true
                                 }
                             },
                             plugins: {
@@ -1621,7 +1631,7 @@
                                             } else if (context.dataset.yAxisID === 'yBalance') {
                                                 label += context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                             } else {
-                                                label += context.raw; // 對於 category 軸，應使用原始字串值
+                                                label += context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                             }
 
                                             // 判斷是否為購買特色 (根據該局的押注額)
