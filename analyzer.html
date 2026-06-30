@@ -1951,25 +1951,25 @@
                     ['高價值玩家', '中階玩家', '休閒玩家'].forEach(s => {
                         const d = analyzedData.value[s];
                         if (d) {
-                            const segmentTop = allPlayers
-                                .filter(p => d.users.has(p.account))
-                                .sort((a, b) => b.totalBetAmount - a.totalBetAmount)
-                                .slice(0, 12)
-                                .map(p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets }));
-
                             segs[s] = { 
                                 headcount: d.headcount, avgBet: d.avgBet, totalBet: d.totalBet, 
-                                ggr: d.ggr, rtp: d.rtp, avgDuration: d.avgDuration, avgBets: d.avgBets,
-                                top_players: segmentTop
+                                ggr: d.ggr, rtp: d.rtp, avgDuration: d.avgDuration, avgBets: d.avgBets
                             };
                         }
                     });
-                    const top = [...(analyzedData.value.allPlayers || [])]
-                        .sort((a, b) => b.totalBetAmount - a.totalBetAmount)
-                        .slice(0, 12)
-                        .map(p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets }));
+                    
+                    const mapPlayer = p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets, buyBonusCount: p.buyBonusCount });
+
+                    const topPlayersMap = {
+                        by_total_bet: [...allPlayers].sort((a, b) => b.totalBetAmount - a.totalBetAmount).slice(0, 12).map(mapPlayer),
+                        by_avg_bet: [...allPlayers].sort((a, b) => b.avgBet - a.avgBet).slice(0, 12).map(mapPlayer),
+                        by_bets: [...allPlayers].sort((a, b) => b.bets - a.bets).slice(0, 12).map(mapPlayer),
+                        by_ggr: [...allPlayers].sort((a, b) => b.ggr - a.ggr).slice(0, 12).map(mapPlayer),
+                        by_buy_bonus: [...allPlayers].sort((a, b) => b.buyBonusCount - a.buyBonusCount).slice(0, 12).map(mapPlayer)
+                    };
+
                     globalResult.value = null;
-                    overviewResult.value = await callProxy("overview", { segments: segs, top_players: top }, overviewLoading);
+                    overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
                 return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading };

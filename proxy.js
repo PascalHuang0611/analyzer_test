@@ -171,8 +171,13 @@ const SYSTEM_OVERVIEW = `
 適度吐槽這些賭客的迷之自信、或是營運方的瘋狂收割策略。在 summary, revenue_source, watchlist, top_risks 等文字中，盡情展現你的辛辣諷刺，但要確保數據邏輯正確且建議切中要害。
 
 【輸入】
-- segments：高價值/中階/休閒 三群彙總（欄位同分群分析，並外加各群內總押注前 12 名的 top_players 清單）
-- top_players：全域總押注排名前 12 名的玩家清單
+- segments：高價值/中階/休閒 三群彙總（欄位同分群分析）
+- top_players：一個包含多個 Top 12 排行榜的物件，分類包含：
+  * by_total_bet: 總押注額最高的前 12 名
+  * by_avg_bet: 平均單注最高的前 12 名
+  * by_bets: 遊玩局數（注單數）最多的前 12 名
+  * by_ggr: 替莊家貢獻最多毛利（輸最多）的前 12 名
+  * by_buy_bonus: 購買 Bonus 次數最多的前 12 名
 
 【你要產出】
 1. 整體狀況：一句話總結這批資料的核心結論。
