@@ -1459,9 +1459,6 @@
                         const d = new Date(row.billTime);
                         const timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                         timeData.push(timeStr);
-
-                        winData.push(row.betAmount * row.multiplier);
-
                         // 切割 Session
                         if (lastTime > 0 && row.billTime - lastTime > 30 * 60 * 1000) {
                             currentBound.end = index - 1;
