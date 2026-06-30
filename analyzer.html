@@ -1412,6 +1412,7 @@
                     const rtpData = [];
                     const balanceData = [];
                     const timeData = [];
+                    const winData = [];
                     const pointStyles = [];
                     const pointRadii = [];
                     const pointColors = [];
@@ -1435,6 +1436,8 @@
                         const d = new Date(row.billTime);
                         const timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                         timeData.push(timeStr);
+
+                        winData.push(row.betAmount * row.multiplier);
 
                         // 切割 Session
                         if (lastTime > 0 && row.billTime - lastTime > 30 * 60 * 1000) {
@@ -1465,7 +1468,7 @@
                     });
                     sessionBounds.push(currentBound);
 
-                    chartCache = { labels, betData, rtpData, balanceData, timeData, pointStyles, pointRadii, pointColors, sessionBounds };
+                    chartCache = { labels, betData, rtpData, balanceData, timeData, winData, pointStyles, pointRadii, pointColors, sessionBounds };
                     chartMax.value = playerBets.length;
                     chartStart.value = 1;
                     chartEnd.value = playerBets.length;
@@ -1598,6 +1601,9 @@
                                             const idx = context[0].dataIndex;
                                             const absoluteIdx = sIdx + idx;
                                             const lines = ['時間: ' + sliceData(chartCache.timeData)[idx]];
+                                            
+                                            const winAmt = sliceData(chartCache.winData)[idx];
+                                            lines.push(`該局贏分: ${winAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
                                             
                                             if (chartCache.sessionBounds) {
                                                 const session = chartCache.sessionBounds.find(b => absoluteIdx >= b.start && absoluteIdx <= b.end);
