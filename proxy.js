@@ -44,8 +44,9 @@ const SYSTEM_PLAYER = `
 - buy_bonus_count：購買 Buy Bonus（付費觸發特色遊戲）的次數，通常代表高投入意願
 - bet_size_distribution：各面額下注次數分布
 - sessions：遊戲場次數（相鄰注單間隔超過 30 分鐘視為新場次）
-- play_span_days：從第一筆到最後一筆注單跨越的天數
-- days_since_last_bet：距今幾天沒下注（recency，流失最直接的訊號）
+- data_start / data_end：這批資料涵蓋的時間範圍（全體玩家）。這是分析的「邊界」。
+- player_first_bet / player_last_bet：這位玩家自己第一筆與最後一筆注單的日期。
+- days_since_last_bet：玩家最後一筆注單距離「資料結束日 data_end」的天數（注意：基準是資料結束日，不是今天）。
 - early_avg_bet / late_avg_bet：歷程前段 vs 後段的平均押注（看下注規模是放大還是縮手）
 - session_trend：按遊玩區段(間隔>30分鐘)拆分的歷程陣列，每段含 bets(局數)、avg_bet、ggr(此段在「我們遊戲」的實際輸贏)、start_balance、end_balance、external_change。
   external_change = 本段進場餘額 − 上一段離場餘額，代表「跨遊戲的資金變動」：
@@ -68,6 +69,12 @@ ggr 為正且可觀（實際帶來收益）、buy_bonus_count 高（高投入意
 - session_trend 後段押注持續下滑，或最近的 end_balance 跌到接近 0（在我們遊戲或別的遊戲輸光本金）
 - 場次集中在早期、近期沒有新場次
 - max_balance 很高但 end_balance 很低（贏了沒跑結果輸回去，容易挫折流失）
+
+重要（資料邊界）：days_since_last_bet 是相對於「資料結束日」而非今天。
+- 若玩家的 player_last_bet 已接近 data_end（days_since_last_bet 很小），不可判為流失，因為資料就只到這裡，無法得知之後狀況。
+- 若玩家 player_first_bet 明顯晚於 data_start，代表他是「中途才進場」，不要把進場前的空窗誤判為流失或不活躍。
+- 你只能在「這批資料的時間範圍內」評估玩家是否出現轉弱/退場跡象，不能斷言他在資料之後是否真的流失；對接近資料邊界的玩家，reasoning 要說明此限制、結論趨保守。
+
 注意：end_balance 接近 0 不必然＝流失，玩家可能會再儲值；請在 reasoning 說明你的假設。
 
 【誠實原則（務必遵守）】

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Coins - 注單深度分析工具 v1.7.0</title>
+    <title>Lucky Coins - 注單深度分析工具 v1.7.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -176,7 +176,7 @@
                         <span style="font-family: 'Noto Sans TC', sans-serif;" class="text-3xl ml-1">分析儀表板</span>
                     </div>
                     <span class="coin-spin text-xl text-cyan-300 tracking-normal font-bold"
-                        style="font-family: 'Inter', sans-serif;">v1.7.0</span>
+                        style="font-family: 'Inter', sans-serif;">v1.7.1</span>
                 </h1>
                 <p class="animate-subtitle text-gray-400 mt-3">完全在地端執行的注單數據透視工具 (依平均押注分群)</p>
             </div>
@@ -907,6 +907,8 @@
                 const chartMax = ref(1);
                 let chartCache = null;
 
+                const globalDataBounds = ref(null);
+
                 const handleTableScroll = (e) => {
                     const { scrollTop, scrollHeight, clientHeight } = e.target;
                     // 拉到底部 100px 內時，再多渲染 50 筆
@@ -1013,6 +1015,16 @@
                         if (a.account > b.account) return 1;
                         return a.billTime - b.billTime;
                     });
+
+                    if (cleaned.length > 0) {
+                        let minTime = Infinity;
+                        let maxTime = 0;
+                        cleaned.forEach(r => {
+                            if (r.billTime < minTime) minTime = r.billTime;
+                            if (r.billTime > maxTime) maxTime = r.billTime;
+                        });
+                        globalDataBounds.value = { start: minTime, end: maxTime };
+                    }
 
                     rawData.value = cleaned;
                     isProcessing.value = false;
@@ -1703,7 +1715,7 @@
                     for (let i = 0; i < playerBets.length; i++) {
                         if (i > 0 && playerBets[i].billTime - playerBets[i - 1].billTime > 30 * 60 * 1000) {
                             currentSession.end_balance = playerBets[i - 1].balance;
-                            currentSession.avg_bet = Math.round(currentSession.total_bet / currentSession.bets);
+                            currentSession.avg_bet = Number((currentSession.total_bet / currentSession.bets).toFixed(2));
                             currentSession.ggr = currentSession.total_bet - currentSession.total_win;
                             pushSession(currentSession);
                             sessions++;
@@ -1714,7 +1726,7 @@
                         currentSession.total_win += playerBets[i].betAmount * playerBets[i].multiplier;
                     }
                     currentSession.end_balance = playerBets[playerBets.length - 1].balance;
-                    currentSession.avg_bet = Math.round(currentSession.total_bet / currentSession.bets);
+                    currentSession.avg_bet = Number((currentSession.total_bet / currentSession.bets).toFixed(2));
                     currentSession.ggr = currentSession.total_bet - currentSession.total_win;
                     pushSession(currentSession);
 
@@ -1726,7 +1738,7 @@
                         const oldSessions = session_trend.slice(0, session_trend.length - MAX_SESSIONS);
                         const oldSummary = {
                             bets: oldSessions.reduce((sum, s) => sum + s.bets, 0),
-                            avg_bet: Math.round(oldSessions.reduce((sum, s) => sum + (s.avg_bet * s.bets), 0) / oldSessions.reduce((sum, s) => sum + s.bets, 0)),
+                            avg_bet: Number((oldSessions.reduce((sum, s) => sum + (s.avg_bet * s.bets), 0) / oldSessions.reduce((sum, s) => sum + s.bets, 0)).toFixed(2)),
                             ggr: oldSessions.reduce((sum, s) => sum + s.ggr, 0),
                             start_balance: oldSessions[0].start_balance,
                             end_balance: oldSessions[oldSessions.length - 1].end_balance,
@@ -1739,7 +1751,17 @@
                     const firstTime = playerBets[0].billTime;
                     const lastTime = playerBets[playerBets.length - 1].billTime;
                     const playSpanDays = Math.max(1, Math.ceil((lastTime - firstTime) / (1000 * 60 * 60 * 24)));
-                    const daysSinceLastBet = Math.max(0, Math.floor((Date.now() - lastTime) / (1000 * 60 * 60 * 24)));
+                    const daysSinceLastBet = globalDataBounds.value ? Math.max(0, Math.floor((globalDataBounds.value.end - lastTime) / (1000 * 60 * 60 * 24))) : 0;
+
+                    // Date boundaries
+                    const formatDate = (ms) => {
+                        const d = new Date(ms);
+                        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    };
+                    const data_start = globalDataBounds.value ? formatDate(globalDataBounds.value.start) : "";
+                    const data_end = globalDataBounds.value ? formatDate(globalDataBounds.value.end) : "";
+                    const player_first_bet = formatDate(firstTime);
+                    const player_last_bet = formatDate(lastTime);
 
                     // Max balance and Max bet
                     let maxBalance = 0;
@@ -1751,9 +1773,13 @@
 
                     return {
                         account: account,
+                        data_start: data_start,
+                        data_end: data_end,
+                        player_first_bet: player_first_bet,
+                        player_last_bet: player_last_bet,
                         total_bets: stats.bets,
                         total_staked: stats.totalBetAmount,
-                        avg_bet: Math.round(stats.avgBet),
+                        avg_bet: Number(stats.avgBet.toFixed(2)),
                         rtp_pct: Number((stats.totalBetAmount > 0 ? (stats.totalWinAmount / stats.totalBetAmount) * 100 : 0).toFixed(2)),
                         ggr: stats.ggr,
                         start_balance: stats.startBalance,
@@ -1764,8 +1790,8 @@
                         sessions: sessions,
                         play_span_days: playSpanDays,
                         days_since_last_bet: daysSinceLastBet,
-                        early_avg_bet: Math.round(earlyAvg),
-                        late_avg_bet: Math.round(lateAvg),
+                        early_avg_bet: Number(earlyAvg.toFixed(2)),
+                        late_avg_bet: Number(lateAvg.toFixed(2)),
                         max_balance: maxBalance,
                         max_bet_amount: maxBetAmount,
                         session_trend: final_session_trend
