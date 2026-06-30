@@ -484,7 +484,7 @@
                         </div>
                         <div v-if="analyzedData" class="text-sm flex gap-4 bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
                             <div><span class="text-gray-400">全域注單佔比:</span> <span class="font-bold text-white">{{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</span></div>
-                            <div><span class="text-gray-400">全域 RTP:</span> <span class="font-bold" :class="analyzedData['總計'].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-purple-300'">{{ analyzedData['總計'].buyBonusSummary.rtp.toFixed(2) }}%</span></div>
+                            <div><span class="text-gray-400">全域 RTP 佔比:</span> <span class="font-bold text-green-400">{{ analyzedData['總計'].buyBonusSummary.rtpRatio.toFixed(2) }}%</span></div>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -512,6 +512,7 @@
                                         <div v-if="analyzedData[seg].buyBonusSummary.count > 0 && showBuyBonusDetails">
                                             <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData[seg].buyBonusSummary.countRatio.toFixed(2) }}%</div>
                                             <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData[seg].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-green-400">RTP 佔比: {{ analyzedData[seg].buyBonusSummary.rtpRatio.toFixed(2) }}%</div>
                                             <div class="text-xs mt-1" :class="analyzedData[seg].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 總 RTP: {{ analyzedData[seg].buyBonusSummary.rtp.toFixed(2) }}%
                                             </div>
@@ -523,7 +524,8 @@
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
                                         <div v-if="item.count > 0 && showBuyBonusDetails" class="mt-1">
                                             <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-500 mb-1">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-green-500 mb-1">RTP佔: {{ item.rtpRatio.toFixed(2) }}%</div>
                                             <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 RTP: {{ item.rtp.toFixed(2) }}%
                                             </div>
@@ -539,6 +541,7 @@
                                         <div v-if="analyzedData['總計'].buyBonusSummary.count > 0 && showBuyBonusDetails">
                                             <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</div>
                                             <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData['總計'].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-green-400">RTP 佔比: {{ analyzedData['總計'].buyBonusSummary.rtpRatio.toFixed(2) }}%</div>
                                             <div class="text-xs mt-1" :class="analyzedData['總計'].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 總 RTP: {{ analyzedData['總計'].buyBonusSummary.rtp.toFixed(2) }}%
                                             </div>
@@ -550,7 +553,8 @@
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
                                         <div v-if="item.count > 0 && showBuyBonusDetails" class="mt-1">
                                             <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
-                                            <div class="text-[11px] text-gray-500 mb-1">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-green-500 mb-1">RTP佔: {{ item.rtpRatio.toFixed(2) }}%</div>
                                             <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
                                                 RTP: {{ item.rtp.toFixed(2) }}%
                                             </div>
@@ -1334,6 +1338,7 @@
                                 const rtp = (b.count > 0 && amt > 0) ? (b.win / (b.count * amt)) * 100 : 0;
                                 const countRatio = s.totalBets > 0 ? (b.count / s.totalBets) * 100 : 0;
                                 const amountRatio = s.totalBetAmount > 0 ? ((b.count * amt) / s.totalBetAmount) * 100 : 0;
+                                const rtpRatio = s.totalWinAmount > 0 ? (b.win / s.totalWinAmount) * 100 : 0;
                                 
                                 buyBonusTotalCount += b.count;
                                 buyBonusTotalWin += b.win;
@@ -1345,14 +1350,15 @@
                                         mults[k] = b.count > 0 ? (v / b.count) * 100 : 0;
                                     }
                                 }
-                                return { amount: amt, count: b.count, rtp: rtp, countRatio: countRatio, amountRatio: amountRatio, mults: mults };
+                                return { amount: amt, count: b.count, rtp: rtp, countRatio: countRatio, amountRatio: amountRatio, rtpRatio: rtpRatio, mults: mults };
                             });
 
                         const buyBonusSummary = {
                             count: buyBonusTotalCount,
                             rtp: buyBonusTotalBet > 0 ? (buyBonusTotalWin / buyBonusTotalBet) * 100 : 0,
                             countRatio: s.totalBets > 0 ? (buyBonusTotalCount / s.totalBets) * 100 : 0,
-                            amountRatio: s.totalBetAmount > 0 ? (buyBonusTotalBet / s.totalBetAmount) * 100 : 0
+                            amountRatio: s.totalBetAmount > 0 ? (buyBonusTotalBet / s.totalBetAmount) * 100 : 0,
+                            rtpRatio: s.totalWinAmount > 0 ? (buyBonusTotalWin / s.totalWinAmount) * 100 : 0
                         };
 
                         result[seg] = {
