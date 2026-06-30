@@ -1654,9 +1654,6 @@
                                             const absoluteIdx = sIdx + idx;
                                             const lines = ['時間: ' + sliceData(chartCache.timeData)[idx]];
                                             
-                                            const winAmt = sliceData(chartCache.winDataRaw)[idx];
-                                            lines.push(`該局贏分: ${winAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-                                            
                                             if (chartCache.sessionBounds) {
                                                 const session = chartCache.sessionBounds.find(b => absoluteIdx >= b.start && absoluteIdx <= b.end);
                                                 if (session) {
