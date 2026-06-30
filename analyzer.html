@@ -655,19 +655,39 @@
                     
                     <div class="p-6" v-else>
                         <div class="space-y-3 max-w-2xl">
-                            <div v-for="(range, idx) in tempRoundRanges" :key="idx" class="flex items-center gap-3">
+                            <!-- Intermediate limits -->
+                            <div v-for="(limit, idx) in tempRoundLimits" :key="idx" class="flex items-center gap-3">
                                 <div class="text-sm text-gray-400 w-16">區間 {{ idx + 1 }}</div>
-                                <input type="number" v-model.number="range.min" class="w-24 bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none" placeholder="Min">
+                                <!-- Read-only Min -->
+                                <div class="w-24 bg-gray-800/50 text-gray-500 border border-gray-700 rounded-lg px-3 py-1.5 cursor-not-allowed">
+                                    {{ idx === 0 ? 0 : tempRoundLimits[idx - 1] + 1 }}
+                                </div>
                                 <span class="text-gray-400">~</span>
-                                <input type="number" v-model="range.max" class="w-24 bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none" placeholder="Max/留空">
+                                <!-- Editable Max -->
+                                <input type="number" v-model.number="tempRoundLimits[idx]" 
+                                    :min="idx === 0 ? 0 : tempRoundLimits[idx - 1] + 1"
+                                    class="w-24 bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none" 
+                                    placeholder="Max">
                                 <button @click="removeRange(idx)" class="text-red-400 hover:text-red-300 px-2" title="移除此區間">
                                     ✕
                                 </button>
                             </div>
+                            <!-- The final Infinity range -->
+                            <div class="flex items-center gap-3">
+                                <div class="text-sm text-gray-400 w-16">區間 {{ tempRoundLimits.length + 1 }}</div>
+                                <div class="w-24 bg-gray-800/50 text-gray-500 border border-gray-700 rounded-lg px-3 py-1.5 cursor-not-allowed">
+                                    {{ tempRoundLimits.length > 0 ? tempRoundLimits[tempRoundLimits.length - 1] + 1 : 0 }}
+                                </div>
+                                <span class="text-gray-400">~</span>
+                                <div class="w-24 bg-gray-800/50 text-gray-500 border border-gray-700 rounded-lg px-3 py-1.5 cursor-not-allowed text-center">
+                                    以上
+                                </div>
+                            </div>
+                            
                             <button @click="addRange" class="mt-4 px-4 py-2 border border-dashed border-gray-500 text-gray-300 hover:text-white hover:border-gray-300 rounded-lg transition-colors text-sm w-full">
-                                + 新增區間
+                                + 新增區段
                             </button>
-                            <p class="text-xs text-gray-500 mt-2">提示：Max 欄位留空代表該範圍以上 (Infinity)。</p>
+                            <p class="text-xs text-gray-500 mt-2">提示：只需要設定每個區段的最大值 (Max)，系統會自動計算下一個區段的起點。防呆機制會在儲存時自動排序並修正重疊的值。</p>
                         </div>
                     </div>
                 </div>
@@ -996,18 +1016,28 @@
                 const savedRoundRanges = localStorage.getItem('luckyCoins_roundRanges');
                 const roundRanges = ref(savedRoundRanges ? parseRanges(JSON.parse(savedRoundRanges)) : parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges))));
                 const isEditingRanges = ref(false);
-                const tempRoundRanges = ref([]);
+                const tempRoundLimits = ref([]);
 
                 const startEditingRanges = () => {
-                    tempRoundRanges.value = roundRanges.value.map(r => ({ min: r.min, max: r.max === Infinity ? '' : r.max }));
+                    tempRoundLimits.value = roundRanges.value.slice(0, -1).map(r => r.max);
                     isEditingRanges.value = true;
                 };
 
                 const saveRanges = () => {
-                    roundRanges.value = tempRoundRanges.value.map(r => ({
-                        min: Number(r.min) || 0,
-                        max: r.max === '' || r.max === null || r.max === 'Infinity' ? Infinity : Number(r.max)
-                    }));
+                    // 防呆機制：過濾不合法的數字、去重複、並自動由小到大排序
+                    const validLimits = [...new Set(tempRoundLimits.value.map(Number))]
+                        .filter(x => !isNaN(x) && x >= 0)
+                        .sort((a, b) => a - b);
+                    
+                    let newRanges = [];
+                    let currentMin = 0;
+                    validLimits.forEach(limit => {
+                        newRanges.push({ min: currentMin, max: limit });
+                        currentMin = limit + 1;
+                    });
+                    newRanges.push({ min: currentMin, max: Infinity });
+                    
+                    roundRanges.value = newRanges;
                     localStorage.setItem('luckyCoins_roundRanges', JSON.stringify(roundRanges.value.map(r => ({
                         min: r.min,
                         max: r.max === Infinity ? 'Infinity' : r.max
@@ -1022,11 +1052,12 @@
                 };
                 
                 const addRange = () => {
-                    tempRoundRanges.value.push({ min: 0, max: '' });
+                    const lastLimit = tempRoundLimits.value.length > 0 ? tempRoundLimits.value[tempRoundLimits.value.length - 1] : 0;
+                    tempRoundLimits.value.push(lastLimit + 100);
                 };
                 
                 const removeRange = (index) => {
-                    tempRoundRanges.value.splice(index, 1);
+                    tempRoundLimits.value.splice(index, 1);
                 };
 
                 const isAnalyzing = ref(false);
@@ -2203,7 +2234,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
-                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundRanges, isEditingRanges, startEditingRanges, saveRanges, resetRanges, addRange, removeRange };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, saveRanges, resetRanges, addRange, removeRange };
             }
         }).mount('#app');
     </script>
