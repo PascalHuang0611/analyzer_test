@@ -1418,10 +1418,10 @@
                     const winDataRaw = [];
                     const buyBonusRtpData = [];
                     
-                    const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700];
+                    const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700, 10000];
                     const mapToCatIndex = (val) => {
                         if (val <= 0) return 0;
-                        if (val >= 1700) return 11;
+                        if (val >= 10000) return 12;
                         for (let i = 0; i < catLevels.length - 1; i++) {
                             if (val >= catLevels[i] && val <= catLevels[i+1]) {
                                 const range = catLevels[i+1] - catLevels[i];
@@ -1429,7 +1429,7 @@
                                 return i + ratio;
                             }
                         }
-                        return 11;
+                        return 12;
                     };
 
                     let currentSessionId = 0;
@@ -1622,14 +1622,14 @@
                                     type: 'linear',
                                     position: 'right',
                                     min: 0,
-                                    max: 11,
+                                    max: 12,
                                     title: { display: true, text: 'Bet / Win Amount', color: '#818cf8' },
                                     ticks: { 
                                         color: '#818cf8',
                                         stepSize: 1,
                                         callback: function(value) {
-                                            const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700];
-                                            if (Number.isInteger(value) && value >= 0 && value <= 11) {
+                                            const catLevels = [0, 1, 5, 10, 50, 85, 100, 170, 500, 850, 1000, 1700, 10000];
+                                            if (Number.isInteger(value) && value >= 0 && value <= 12) {
                                                 return catLevels[value];
                                             }
                                             return null;
