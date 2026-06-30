@@ -482,6 +482,7 @@
                             <thead>
                                 <tr class="table-header text-sm text-indigo-200">
                                     <th class="p-4 font-semibold whitespace-nowrap">玩家群體</th>
+                                    <th class="p-4 font-semibold whitespace-nowrap text-purple-300 bg-purple-900/20">Buy Bonus 總計</th>
                                     <th v-for="item in analyzedData['高價值玩家'].buyBonusFreqs" :key="item.amount"
                                         class="p-4 font-semibold whitespace-nowrap">
                                         Buy {{ item.amount }}
@@ -495,22 +496,54 @@
                                     <td class="p-4 font-bold whitespace-nowrap"
                                         :class="{'text-indigo-400': seg==='高價值玩家', 'text-cyan-400': seg==='中階玩家', 'text-gray-400': seg==='休閒玩家'}">
                                         {{ seg }}</td>
+                                    
+                                    <td class="p-4 bg-purple-900/20">
+                                        <div class="font-bold text-purple-300">{{ analyzedData[seg].buyBonusSummary.count.toLocaleString() }}</div>
+                                        <div v-if="analyzedData[seg].buyBonusSummary.count > 0">
+                                            <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData[seg].buyBonusSummary.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData[seg].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="analyzedData[seg].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                                總 RTP: {{ analyzedData[seg].buyBonusSummary.rtp.toFixed(2) }}%
+                                            </div>
+                                        </div>
+                                        <div v-else class="text-[11px] text-gray-500 mt-1">無購買紀錄</div>
+                                    </td>
+
                                     <td v-for="item in analyzedData[seg].buyBonusFreqs" :key="item.amount" class="p-4">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
-                                        <div v-if="item.count > 0" class="text-xs mt-1"
-                                            :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
-                                            RTP: {{ item.rtp.toFixed(2) }}%
+                                        <div v-if="item.count > 0" class="mt-1">
+                                            <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500 mb-1">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                                RTP: {{ item.rtp.toFixed(2) }}%
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
                                 <tr class="bg-indigo-900/30 font-bold text-white cursor-pointer hover:bg-indigo-800/40 transition-colors"
                                     @click="selectedBonusSegment = '總計'">
                                     <td class="p-4 whitespace-nowrap">總和</td>
+
+                                    <td class="p-4 bg-purple-900/20">
+                                        <div class="font-bold text-purple-300">{{ analyzedData['總計'].buyBonusSummary.count.toLocaleString() }}</div>
+                                        <div v-if="analyzedData['總計'].buyBonusSummary.count > 0">
+                                            <div class="text-[11px] text-gray-400 mt-1">注單數佔比: {{ analyzedData['總計'].buyBonusSummary.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-400">總押額佔比: {{ analyzedData['總計'].buyBonusSummary.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs mt-1" :class="analyzedData['總計'].buyBonusSummary.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                                總 RTP: {{ analyzedData['總計'].buyBonusSummary.rtp.toFixed(2) }}%
+                                            </div>
+                                        </div>
+                                        <div v-else class="text-[11px] text-gray-500 mt-1">無購買紀錄</div>
+                                    </td>
+
                                     <td v-for="item in analyzedData['總計'].buyBonusFreqs" :key="item.amount" class="p-4">
                                         <div class="font-bold">{{ item.count.toLocaleString() }}</div>
-                                        <div v-if="item.count > 0" class="text-xs mt-1"
-                                            :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
-                                            RTP: {{ item.rtp.toFixed(2) }}%
+                                        <div v-if="item.count > 0" class="mt-1">
+                                            <div class="text-[11px] text-gray-500">注單佔: {{ item.countRatio.toFixed(2) }}%</div>
+                                            <div class="text-[11px] text-gray-500 mb-1">押額佔: {{ item.amountRatio.toFixed(2) }}%</div>
+                                            <div class="text-xs" :class="item.rtp >= 100 ? 'text-green-400' : 'text-gray-400'">
+                                                RTP: {{ item.rtp.toFixed(2) }}%
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -1274,20 +1307,38 @@
                             .sort((a, b) => a - b)
                             .map(amt => ({ amount: amt, count: s.betFreqs[amt] }));
 
+                        let buyBonusTotalCount = 0;
+                        let buyBonusTotalWin = 0;
+                        let buyBonusTotalBet = 0;
+
                         const buyBonusFreqArray = Object.keys(s.buyBonusFreqs)
                             .map(Number)
                             .sort((a, b) => a - b)
                             .map(amt => {
                                 const b = s.buyBonusFreqs[amt];
                                 const rtp = (b.count > 0 && amt > 0) ? (b.win / (b.count * amt)) * 100 : 0;
+                                const countRatio = s.totalBets > 0 ? (b.count / s.totalBets) * 100 : 0;
+                                const amountRatio = s.totalBetAmount > 0 ? ((b.count * amt) / s.totalBetAmount) * 100 : 0;
+                                
+                                buyBonusTotalCount += b.count;
+                                buyBonusTotalWin += b.win;
+                                buyBonusTotalBet += (b.count * amt);
+
                                 const mults = {};
                                 if (b.multsCount) {
                                     for (const [k, v] of Object.entries(b.multsCount)) {
                                         mults[k] = b.count > 0 ? (v / b.count) * 100 : 0;
                                     }
                                 }
-                                return { amount: amt, count: b.count, rtp: rtp, mults: mults };
+                                return { amount: amt, count: b.count, rtp: rtp, countRatio: countRatio, amountRatio: amountRatio, mults: mults };
                             });
+
+                        const buyBonusSummary = {
+                            count: buyBonusTotalCount,
+                            rtp: buyBonusTotalBet > 0 ? (buyBonusTotalWin / buyBonusTotalBet) * 100 : 0,
+                            countRatio: s.totalBets > 0 ? (buyBonusTotalCount / s.totalBets) * 100 : 0,
+                            amountRatio: s.totalBetAmount > 0 ? (buyBonusTotalBet / s.totalBetAmount) * 100 : 0
+                        };
 
                         result[seg] = {
                             headcount: s.users.size,
@@ -1306,7 +1357,8 @@
                             avgStartBalance: avgStartBalance,
                             avgEndBalance: avgEndBalance,
                             betFreqs: betFreqArray,
-                            buyBonusFreqs: buyBonusFreqArray
+                            buyBonusFreqs: buyBonusFreqArray,
+                            buyBonusSummary: buyBonusSummary
                         };
                     }
 
