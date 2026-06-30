@@ -1053,7 +1053,7 @@
                                 billTime: new Date(row['Bill Time']).getTime(),
                                 betAmount: parseFloat(row['Bet Amount']) || 0,
                                 multiplier: parseFloat(row.Multiplier) || 0,
-                                payout: (row.Payout !== undefined || row.PAYOUT !== undefined) ? (parseFloat(row.Payout || row.PAYOUT) || 0) : ((parseFloat(row['Bet Amount']) || 0) * (parseFloat(row.Multiplier) || 0)),
+                                payout: parseFloat(row.Payout || row.PAYOUT) || 0,
                                 betPlace: row['Bet Place'] || "",
                                 balance: parseFloat(row.Balance) || 0
                             });
