@@ -1946,10 +1946,23 @@
                 };
 
                 const analyzeOverview = async () => {
+                    const allPlayers = analyzedData.value.allPlayers || [];
                     const segs = {};
                     ['高價值玩家', '中階玩家', '休閒玩家'].forEach(s => {
                         const d = analyzedData.value[s];
-                        if (d) segs[s] = { headcount: d.headcount, avgBet: d.avgBet, totalBet: d.totalBet, ggr: d.ggr, rtp: d.rtp, avgDuration: d.avgDuration, avgBets: d.avgBets };
+                        if (d) {
+                            const segmentTop = allPlayers
+                                .filter(p => d.users.has(p.account))
+                                .sort((a, b) => b.totalBetAmount - a.totalBetAmount)
+                                .slice(0, 12)
+                                .map(p => ({ account: p.account, avgBet: Math.round(p.avgBet), totalBetAmount: Math.round(p.totalBetAmount), ggr: Math.round(p.ggr), bets: p.bets }));
+
+                            segs[s] = { 
+                                headcount: d.headcount, avgBet: d.avgBet, totalBet: d.totalBet, 
+                                ggr: d.ggr, rtp: d.rtp, avgDuration: d.avgDuration, avgBets: d.avgBets,
+                                top_players: segmentTop
+                            };
+                        }
                     });
                     const top = [...(analyzedData.value.allPlayers || [])]
                         .sort((a, b) => b.totalBetAmount - a.totalBetAmount)
