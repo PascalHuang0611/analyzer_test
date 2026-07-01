@@ -621,7 +621,12 @@
                 <!-- Block 4.5: Player Rounds Distribution -->
                 <div class="glass rounded-2xl overflow-hidden mb-6">
                     <div class="p-6 border-b border-white/10 flex items-center justify-between">
-                        <h3 class="text-xl font-bold">玩家遊玩局數分佈</h3>
+                        <div class="flex items-center gap-4">
+                            <h3 class="text-xl font-bold">玩家遊玩局數分佈</h3>
+                            <button v-if="!isEditingRanges && selectedRoundRangeIndices.length > 0" @click="selectAllRounds" class="px-3 py-1 bg-indigo-600/50 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded text-xs transition-colors">
+                                全選 / 恢復預設
+                            </button>
+                        </div>
                         <div v-if="!isEditingRanges">
                             <button @click="startEditingRanges" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm">
                                 編輯區間
@@ -643,9 +648,9 @@
                     <div class="p-6" v-if="!isEditingRanges">
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                             <div v-for="(dist, idx) in roundDistribution.distribution" :key="idx" 
-                                @click="selectedRoundRangeIndex = selectedRoundRangeIndex === idx ? null : idx"
+                                @click="toggleRoundFilter(idx)"
                                 class="rounded-lg p-4 flex flex-col justify-between cursor-pointer transition-colors border"
-                                :class="selectedRoundRangeIndex === idx ? 'border-indigo-500 bg-indigo-900/30' : 'bg-gray-800/50 border-white/5 hover:border-indigo-400/50'">
+                                :class="selectedRoundRangeIndices.length === 0 || selectedRoundRangeIndices.includes(idx) ? 'border-indigo-500 bg-indigo-900/30' : 'bg-gray-800/50 border-white/5 hover:border-indigo-400/50 opacity-50'">
                                 <div class="text-gray-400 text-sm mb-2 font-medium">{{ dist.displayRange }} 局</div>
                                 <div class="text-2xl font-bold text-white mb-1">{{ dist.count }} <span class="text-sm font-normal text-gray-500">人</span></div>
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mb-1 mt-auto">
@@ -1003,7 +1008,6 @@
                 const sortKey = ref('bets');
                 const sortOrder = ref('desc');
                 const searchQuery = ref('');
-                const selectedRoundRangeIndex = ref(null);
 
                 const defaultRoundRanges = [
                     { min: 0, max: 9 },
@@ -1022,8 +1026,23 @@
                 const roundRanges = ref(savedRoundRanges ? parseRanges(JSON.parse(savedRoundRanges)) : parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges))));
                 const isEditingRanges = ref(false);
                 const tempRoundLimits = ref([]);
-                const selectedRoundRangeIndex = ref(null);
+                const savedRoundFilters = localStorage.getItem('luckyCoins_roundFilters');
+                const selectedRoundRangeIndices = ref(savedRoundFilters ? JSON.parse(savedRoundFilters) : []);
 
+                const toggleRoundFilter = (idx) => {
+                    const pos = selectedRoundRangeIndices.value.indexOf(idx);
+                    if (pos === -1) {
+                        selectedRoundRangeIndices.value.push(idx);
+                    } else {
+                        selectedRoundRangeIndices.value.splice(pos, 1);
+                    }
+                    localStorage.setItem('luckyCoins_roundFilters', JSON.stringify(selectedRoundRangeIndices.value));
+                };
+
+                const selectAllRounds = () => {
+                    selectedRoundRangeIndices.value = [];
+                    localStorage.setItem('luckyCoins_roundFilters', JSON.stringify(selectedRoundRangeIndices.value));
+                };
                 const startEditingRanges = () => {
                     tempRoundLimits.value = roundRanges.value.slice(0, -1).map(r => r.max);
                     isEditingRanges.value = true;
@@ -1042,7 +1061,8 @@
 
                 const saveRanges = () => {
                     validateLimits(); // 防呆
-                    selectedRoundRangeIndex.value = null; // 雙重保險
+                    selectedRoundRangeIndices.value = [];
+                    localStorage.removeItem('luckyCoins_roundFilters');
                     // 防呆機制：過濾不合法的數字、去重複、並自動由小到大排序
                     const validLimits = [...new Set(tempRoundLimits.value.map(Number))]
                         .filter(x => !isNaN(x) && x >= 0)
@@ -1066,7 +1086,8 @@
 
                 const resetRanges = () => {
                     roundRanges.value = parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges)));
-                    selectedRoundRangeIndex.value = null;
+                    selectedRoundRangeIndices.value = [];
+                    localStorage.removeItem('luckyCoins_roundFilters');
                     localStorage.removeItem('luckyCoins_roundRanges');
                     isEditingRanges.value = false;
                 };
@@ -1157,12 +1178,15 @@
                         const q = searchQuery.value.toLowerCase();
                         arr = arr.filter(p => p.account.toLowerCase().includes(q));
                     }
-                    if (selectedRoundRangeIndex.value !== null) {
-                        const r = roundRanges.value[selectedRoundRangeIndex.value];
-                        if (r) {
-                            const maxVal = r.max === 'Infinity' ? Infinity : r.max;
-                            arr = arr.filter(p => p.bets >= r.min && p.bets <= maxVal);
-                        }
+                    if (selectedRoundRangeIndices.value.length > 0) {
+                        arr = arr.filter(p => {
+                            return selectedRoundRangeIndices.value.some(idx => {
+                                const r = roundRanges.value[idx];
+                                if (!r) return false;
+                                const maxVal = r.max === 'Infinity' ? Infinity : r.max;
+                                return p.bets >= r.min && p.bets <= maxVal;
+                            });
+                        });
                     }
                     return [...arr].sort((a, b) => {
                         let valA = a[sortKey.value];
@@ -2241,7 +2265,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
-                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange, selectedRoundRangeIndex };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange, selectedRoundRangeIndices, toggleRoundFilter, selectAllRounds };
             }
         }).mount('#app');
     </script>
