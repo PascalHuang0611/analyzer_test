@@ -642,7 +642,10 @@
                     
                     <div class="p-6" v-if="!isEditingRanges">
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                            <div v-for="(dist, idx) in roundDistribution.distribution" :key="idx" class="bg-gray-800/50 rounded-lg p-4 border border-white/5 flex flex-col justify-between">
+                            <div v-for="(dist, idx) in roundDistribution.distribution" :key="idx" 
+                                @click="selectedRoundRangeIndex = selectedRoundRangeIndex === idx ? null : idx"
+                                class="rounded-lg p-4 flex flex-col justify-between cursor-pointer transition-colors border"
+                                :class="selectedRoundRangeIndex === idx ? 'border-indigo-500 bg-indigo-900/30' : 'bg-gray-800/50 border-white/5 hover:border-indigo-400/50'">
                                 <div class="text-gray-400 text-sm mb-2 font-medium">{{ dist.displayRange }} 局</div>
                                 <div class="text-2xl font-bold text-white mb-1">{{ dist.count }} <span class="text-sm font-normal text-gray-500">人</span></div>
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mb-1 mt-auto">
@@ -698,7 +701,7 @@
                     <div
                         class="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h3 class="text-xl font-bold">全站投注排行榜</h3>
+                            <h3 class="text-xl font-bold">排行榜</h3>
                             <p class="text-sm text-gray-400 mt-1">支援向下滾動檢視所有玩家。匯出 Markdown 時僅會匯出當下顯示列表的前 10 名。</p>
                         </div>
                         <div class="relative w-full md:w-64">
@@ -1000,6 +1003,7 @@
                 const sortKey = ref('bets');
                 const sortOrder = ref('desc');
                 const searchQuery = ref('');
+                const selectedRoundRangeIndex = ref(null);
 
                 const defaultRoundRanges = [
                     { min: 0, max: 9 },
@@ -1018,6 +1022,7 @@
                 const roundRanges = ref(savedRoundRanges ? parseRanges(JSON.parse(savedRoundRanges)) : parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges))));
                 const isEditingRanges = ref(false);
                 const tempRoundLimits = ref([]);
+                const selectedRoundRangeIndex = ref(null);
 
                 const startEditingRanges = () => {
                     tempRoundLimits.value = roundRanges.value.slice(0, -1).map(r => r.max);
@@ -1036,7 +1041,8 @@
                 };
 
                 const saveRanges = () => {
-                    validateLimits(); // 雙重保險
+                    validateLimits(); // 防呆
+                    selectedRoundRangeIndex.value = null; // 雙重保險
                     // 防呆機制：過濾不合法的數字、去重複、並自動由小到大排序
                     const validLimits = [...new Set(tempRoundLimits.value.map(Number))]
                         .filter(x => !isNaN(x) && x >= 0)
@@ -1060,6 +1066,7 @@
 
                 const resetRanges = () => {
                     roundRanges.value = parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges)));
+                    selectedRoundRangeIndex.value = null;
                     localStorage.removeItem('luckyCoins_roundRanges');
                     isEditingRanges.value = false;
                 };
@@ -1149,6 +1156,13 @@
                     if (searchQuery.value) {
                         const q = searchQuery.value.toLowerCase();
                         arr = arr.filter(p => p.account.toLowerCase().includes(q));
+                    }
+                    if (selectedRoundRangeIndex.value !== null) {
+                        const r = roundRanges.value[selectedRoundRangeIndex.value];
+                        if (r) {
+                            const maxVal = r.max === 'Infinity' ? Infinity : r.max;
+                            arr = arr.filter(p => p.bets >= r.min && p.bets <= maxVal);
+                        }
                     }
                     return [...arr].sort((a, b) => {
                         let valA = a[sortKey.value];
@@ -2227,7 +2241,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
-                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange, selectedRoundRangeIndex };
             }
         }).mount('#app');
     </script>
