@@ -338,7 +338,7 @@
                             <input type="number" v-model.number="highBetThreshold" min="1"
                                 class="w-24 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-right focus:border-indigo-500 focus:outline-none">
                         </div>
-                        <input type="range" v-model.number="highBetThreshold" min="1" max="200" step="1"
+                        <input type="range" v-model.number="highBetThreshold" min="1" max="1000" step="1"
                             class="w-full mt-2">
                     </div>
                     <div>
@@ -347,7 +347,7 @@
                             <input type="number" v-model.number="midBetThreshold" min="1"
                                 class="w-24 bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-right focus:border-cyan-500 focus:outline-none">
                         </div>
-                        <input type="range" v-model.number="midBetThreshold" min="1" max="100" step="1"
+                        <input type="range" v-model.number="midBetThreshold" min="1" max="1000" step="1"
                             class="w-full mt-2">
                         <span class="text-xs text-gray-400 mt-1 block">平均押注低於 {{ midBetThreshold }} 為休閒玩家</span>
                     </div>
