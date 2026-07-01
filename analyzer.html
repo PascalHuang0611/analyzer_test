@@ -1047,16 +1047,15 @@
                 };
 
                 const toggleSegmentFilter = (idx, segment) => {
-                    if (!disabledSegmentsPerRange.value[idx]) {
-                        disabledSegmentsPerRange.value[idx] = [];
-                    }
-                    const arr = disabledSegmentsPerRange.value[idx];
-                    const pos = arr.indexOf(segment);
+                    const newObj = { ...disabledSegmentsPerRange.value };
+                    if (!newObj[idx]) newObj[idx] = [];
+                    const pos = newObj[idx].indexOf(segment);
                     if (pos === -1) {
-                        arr.push(segment);
+                        newObj[idx] = [...newObj[idx], segment];
                     } else {
-                        arr.splice(pos, 1);
+                        newObj[idx] = newObj[idx].filter(s => s !== segment);
                     }
+                    disabledSegmentsPerRange.value = newObj;
                     localStorage.setItem('luckyCoins_segmentFilters', JSON.stringify(disabledSegmentsPerRange.value));
                 };
 
@@ -1203,14 +1202,14 @@
                     localStorage.setItem('luckyCoins_midBet', val);
                 });
 
-                const filteredAndSortedPlayers = computed(() => {
+                const basePlayersForDistribution = computed(() => {
                     if (!analyzedData.value || !analyzedData.value.allPlayers) return [];
                     let arr = analyzedData.value.allPlayers;
                     if (searchQuery.value) {
                         const q = searchQuery.value.toLowerCase();
                         arr = arr.filter(p => p.account.toLowerCase().includes(q));
                     }
-                    arr = arr.filter(p => {
+                    return arr.filter(p => {
                         let rangeIdx = -1;
                         for (let i = 0; i < roundRanges.value.length; i++) {
                             const r = roundRanges.value[i];
@@ -1220,14 +1219,29 @@
                                 break;
                             }
                         }
-                        if (selectedRoundRangeIndices.value.length > 0) {
-                            if (!selectedRoundRangeIndices.value.includes(rangeIdx)) return false;
-                        }
                         if (rangeIdx !== -1 && disabledSegmentsPerRange.value[rangeIdx] && disabledSegmentsPerRange.value[rangeIdx].includes(p.segment)) {
                             return false;
                         }
                         return true;
                     });
+                });
+
+                const filteredAndSortedPlayers = computed(() => {
+                    let arr = basePlayersForDistribution.value;
+                    if (selectedRoundRangeIndices.value.length > 0) {
+                        arr = arr.filter(p => {
+                            let rangeIdx = -1;
+                            for (let i = 0; i < roundRanges.value.length; i++) {
+                                const r = roundRanges.value[i];
+                                const maxVal = r.max === 'Infinity' ? Infinity : r.max;
+                                if (p.bets >= r.min && p.bets <= maxVal) {
+                                    rangeIdx = i;
+                                    break;
+                                }
+                            }
+                            return selectedRoundRangeIndices.value.includes(rangeIdx);
+                        });
+                    }
                     return [...arr].sort((a, b) => {
                         let valA = a[sortKey.value];
                         let valB = b[sortKey.value];
@@ -1237,7 +1251,7 @@
                 });
 
                 const roundDistribution = computed(() => {
-                    const players = filteredAndSortedPlayers.value;
+                    const players = basePlayersForDistribution.value;
                     const totalPlayers = players.length;
                     if (totalPlayers === 0) return { total: 0, distribution: [] };
                     
