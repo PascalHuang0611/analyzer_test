@@ -657,6 +657,11 @@
                                     <div class="bg-indigo-500 h-1.5 rounded-full" :style="{ width: dist.percentage + '%' }"></div>
                                 </div>
                                 <div class="text-xs text-gray-400 text-right">{{ dist.percentage }}%</div>
+                                <div class="mt-2 pt-2 border-t border-white/5 flex justify-between gap-1" @click.stop>
+                                    <button @click="toggleSegmentFilter(idx, '高價值玩家')" :class="isSegmentActive(idx, '高價值玩家') ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-500 hover:text-white hover:bg-gray-600'" class="flex-1 text-[10px] py-1 rounded transition-colors">高</button>
+                                    <button @click="toggleSegmentFilter(idx, '中階玩家')" :class="isSegmentActive(idx, '中階玩家') ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-500 hover:text-white hover:bg-gray-600'" class="flex-1 text-[10px] py-1 rounded transition-colors">中</button>
+                                    <button @click="toggleSegmentFilter(idx, '休閒玩家')" :class="isSegmentActive(idx, '休閒玩家') ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-500 hover:text-white hover:bg-gray-600'" class="flex-1 text-[10px] py-1 rounded transition-colors">休</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1028,6 +1033,8 @@
                 const tempRoundLimits = ref([]);
                 const savedRoundFilters = localStorage.getItem('luckyCoins_roundFilters');
                 const selectedRoundRangeIndices = ref(savedRoundFilters ? JSON.parse(savedRoundFilters) : []);
+                const savedSegmentFilters = localStorage.getItem('luckyCoins_segmentFilters');
+                const disabledSegmentsPerRange = ref(savedSegmentFilters ? JSON.parse(savedSegmentFilters) : {});
 
                 const toggleRoundFilter = (idx) => {
                     const pos = selectedRoundRangeIndices.value.indexOf(idx);
@@ -1039,9 +1046,30 @@
                     localStorage.setItem('luckyCoins_roundFilters', JSON.stringify(selectedRoundRangeIndices.value));
                 };
 
+                const toggleSegmentFilter = (idx, segment) => {
+                    if (!disabledSegmentsPerRange.value[idx]) {
+                        disabledSegmentsPerRange.value[idx] = [];
+                    }
+                    const arr = disabledSegmentsPerRange.value[idx];
+                    const pos = arr.indexOf(segment);
+                    if (pos === -1) {
+                        arr.push(segment);
+                    } else {
+                        arr.splice(pos, 1);
+                    }
+                    localStorage.setItem('luckyCoins_segmentFilters', JSON.stringify(disabledSegmentsPerRange.value));
+                };
+
+                const isSegmentActive = (idx, segment) => {
+                    if (!disabledSegmentsPerRange.value[idx]) return true;
+                    return !disabledSegmentsPerRange.value[idx].includes(segment);
+                };
+
                 const selectAllRounds = () => {
                     selectedRoundRangeIndices.value = [];
+                    disabledSegmentsPerRange.value = {};
                     localStorage.setItem('luckyCoins_roundFilters', JSON.stringify(selectedRoundRangeIndices.value));
+                    localStorage.setItem('luckyCoins_segmentFilters', JSON.stringify(disabledSegmentsPerRange.value));
                 };
                 const startEditingRanges = () => {
                     tempRoundLimits.value = roundRanges.value.slice(0, -1).map(r => r.max);
@@ -1062,7 +1090,9 @@
                 const saveRanges = () => {
                     validateLimits(); // 防呆
                     selectedRoundRangeIndices.value = [];
+                    disabledSegmentsPerRange.value = {};
                     localStorage.removeItem('luckyCoins_roundFilters');
+                    localStorage.removeItem('luckyCoins_segmentFilters');
                     // 防呆機制：過濾不合法的數字、去重複、並自動由小到大排序
                     const validLimits = [...new Set(tempRoundLimits.value.map(Number))]
                         .filter(x => !isNaN(x) && x >= 0)
@@ -1087,7 +1117,9 @@
                 const resetRanges = () => {
                     roundRanges.value = parseRanges(JSON.parse(JSON.stringify(defaultRoundRanges)));
                     selectedRoundRangeIndices.value = [];
+                    disabledSegmentsPerRange.value = {};
                     localStorage.removeItem('luckyCoins_roundFilters');
+                    localStorage.removeItem('luckyCoins_segmentFilters');
                     localStorage.removeItem('luckyCoins_roundRanges');
                     isEditingRanges.value = false;
                 };
@@ -1178,16 +1210,24 @@
                         const q = searchQuery.value.toLowerCase();
                         arr = arr.filter(p => p.account.toLowerCase().includes(q));
                     }
-                    if (selectedRoundRangeIndices.value.length > 0) {
-                        arr = arr.filter(p => {
-                            return selectedRoundRangeIndices.value.some(idx => {
-                                const r = roundRanges.value[idx];
-                                if (!r) return false;
-                                const maxVal = r.max === 'Infinity' ? Infinity : r.max;
-                                return p.bets >= r.min && p.bets <= maxVal;
-                            });
-                        });
-                    }
+                    arr = arr.filter(p => {
+                        let rangeIdx = -1;
+                        for (let i = 0; i < roundRanges.value.length; i++) {
+                            const r = roundRanges.value[i];
+                            const maxVal = r.max === 'Infinity' ? Infinity : r.max;
+                            if (p.bets >= r.min && p.bets <= maxVal) {
+                                rangeIdx = i;
+                                break;
+                            }
+                        }
+                        if (selectedRoundRangeIndices.value.length > 0) {
+                            if (!selectedRoundRangeIndices.value.includes(rangeIdx)) return false;
+                        }
+                        if (rangeIdx !== -1 && disabledSegmentsPerRange.value[rangeIdx] && disabledSegmentsPerRange.value[rangeIdx].includes(p.segment)) {
+                            return false;
+                        }
+                        return true;
+                    });
                     return [...arr].sort((a, b) => {
                         let valA = a[sortKey.value];
                         let valB = b[sortKey.value];
@@ -1487,7 +1527,8 @@
                             avgBet: avgBet,
                             totalBetAmount: us.totalBetAmount,
                             ggr: us.totalBetAmount - us.totalWinAmount,
-                            buyBonusCount: us.buyBonusCount
+                            buyBonusCount: us.buyBonusCount,
+                            segment: seg
                         });
                     });
 
@@ -2265,7 +2306,7 @@
                     overviewResult.value = await callProxy("overview", { segments: segs, top_players: topPlayersMap }, overviewLoading);
                 };
 
-                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange, selectedRoundRangeIndices, toggleRoundFilter, selectAllRounds };
+                return { getBuyBonusTooltip, showBuyBonusDetails, getHeatmapStyle, highBetThreshold, midBetThreshold, isProcessing, handleFileSelect, analyzedData, includeBuyBonus, selectedPlayer, selectedBonusSegment, buyBonusMultiplierColumns, sortKey, sortOrder, setSort, showChartModal, openChart, closeChart, renderChart, exportToMarkdown, displayCount, handleTableScroll, chartStart, chartEnd, chartMax, searchQuery, filteredAndSortedPlayers, isAnalyzing, aiResult, analyzeWithAI, segmentLoading, overviewLoading, globalResult, overviewResult, globalError, analyzeSegments, analyzeOverview, isAnyAILoading, roundDistribution, roundRanges, tempRoundLimits, isEditingRanges, startEditingRanges, validateLimits, saveRanges, resetRanges, addRange, removeRange, selectedRoundRangeIndices, toggleRoundFilter, selectAllRounds, toggleSegmentFilter, isSegmentActive };
             }
         }).mount('#app');
     </script>
