@@ -1262,47 +1262,21 @@
                     isProcessing.value = false;
                 };
 
-                const analyzedData = computed(() => {
+                const playerStatsMap = computed(() => {
                     if (rawData.value.length === 0) return null;
                     const data = rawData.value;
                     const globalBuyBonusMults = new Set();
-
                     const buyBonusAmounts = [85, 170, 850, 1700];
-                    const normalBetAmounts = [1, 5, 10, 50, 100, 500, 1000];
 
-                    // 1. 計算每個 Account 的平均押注
-                    const accountStats = {};
-                    data.forEach(row => {
-                        if (!accountStats[row.account]) accountStats[row.account] = { totalBet: 0, count: 0 };
-
-                        const isBuyBonus = buyBonusAmounts.includes(row.betAmount);
-                        if (!includeBuyBonus.value && isBuyBonus) return;
-
-                        accountStats[row.account].totalBet += row.betAmount;
-                        accountStats[row.account].count++;
-                    });
-
-                    const segmentMap = {};
-                    Object.keys(accountStats).forEach(acc => {
-                        const count = accountStats[acc].count;
-                        const avgBet = count > 0 ? accountStats[acc].totalBet / count : 0;
-                        if (avgBet >= highBetThreshold.value) segmentMap[acc] = '高價值玩家';
-                        else if (avgBet >= midBetThreshold.value) segmentMap[acc] = '中階玩家';
-                        else segmentMap[acc] = '休閒玩家';
-                    });
-
-                    // 2. 初始化統計物件
-                    const initStats = () => ({
-                        users: new Set(),
+                    const initUserStats = () => ({
+                        account: '',
+                        bets: 0,
                         totalBetAmount: 0,
                         totalWinAmount: 0,
-                        totalBets: 0,
-                        sessions: [],
-                        currentSession: null,
-                        multsCount: { '0x': 0, '0_1x': 0, '1_10x': 0, '10_50x': 0, '50x_plus': 0 },
-                        bonusHits: 0,
-                        baseBonusHits: 0,
+                        buyBonusCount: 0,
                         baseBets: 0,
+                        baseBonusHits: 0,
+                        bonusHits: 0,
                         respinHits: 0,
                         betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
                         buyBonusFreqs: {
@@ -1310,77 +1284,38 @@
                             170: { count: 0, win: 0, multsCount: {} },
                             850: { count: 0, win: 0, multsCount: {} },
                             1700: { count: 0, win: 0, multsCount: {} }
-                        }
+                        },
+                        multsCount: { '0x': 0, '0_1x': 0, '1_10x': 0, '10_50x': 0, '50x_plus': 0 },
+                        sessions: [],
+                        currentSession: null,
+                        startBalance: 0,
+                        endBalance: 0
                     });
 
-                    const stats = {
-                        '高價值玩家': initStats(),
-                        '中階玩家': initStats(),
-                        '休閒玩家': initStats(),
-                        '總計': initStats()
-                    };
-
-                    // 3. 掃描資料
-                    let lastRow = null;
                     const userStats = {};
+                    let lastRow = null;
 
                     data.forEach(row => {
-                        const seg = segmentMap[row.account];
-                        if (!seg) return;
-
                         const isBuyBonus = buyBonusAmounts.includes(row.betAmount);
+                        if (!includeBuyBonus.value && isBuyBonus) return;
 
                         if (!userStats[row.account]) {
-                            userStats[row.account] = {
-                                account: row.account,
-                                bets: 0,
-                                totalBetAmount: 0,
-                                totalWinAmount: 0,
-                                buyBonusCount: 0,
-                                betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
-                                buyBonusFreqs: {
-                                    85: { count: 0, win: 0, multsCount: {} },
-                                    170: { count: 0, win: 0, multsCount: {} },
-                                    850: { count: 0, win: 0, multsCount: {} },
-                                    1700: { count: 0, win: 0, multsCount: {} }
-                                },
-                                startBalance: row.balance,
-                                endBalance: row.balance
-                            };
+                            userStats[row.account] = initUserStats();
+                            userStats[row.account].account = row.account;
+                            userStats[row.account].startBalance = row.balance;
                         }
+
                         const us = userStats[row.account];
                         us.endBalance = row.balance;
                         us.bets++;
                         us.totalBetAmount += row.betAmount;
                         us.totalWinAmount += row.payout;
-                        if (isBuyBonus) {
-                            us.buyBonusCount++;
-                            if (!us.buyBonusFreqs[row.betAmount]) {
-                                us.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
-                            }
-                            us.buyBonusFreqs[row.betAmount].count++;
-                            us.buyBonusFreqs[row.betAmount].win += row.payout;
 
-                            const m = row.multiplier;
-                            globalBuyBonusMults.add(m);
-                            us.buyBonusFreqs[row.betAmount].multsCount[m] = (us.buyBonusFreqs[row.betAmount].multsCount[m] || 0) + 1;
-                        } else {
-                            us.betFreqs[row.betAmount] = (us.betFreqs[row.betAmount] || 0) + 1;
-                        }
-
-                        const s = stats[seg];
-
-                        // Parse bet features before loop
                         let hasB = false, hasR = false;
                         if (row.betPlace && row.betPlace !== "") {
                             try {
                                 let str = row.betPlace;
-                                let parsed = [];
-                                if (str.includes('],[')) {
-                                    parsed = JSON.parse(`[${str}]`);
-                                } else {
-                                    parsed = [JSON.parse(str)];
-                                }
+                                let parsed = str.includes('],[') ? JSON.parse(`[${str}]`) : [JSON.parse(str)];
                                 for (let arr of parsed) {
                                     if (arr && arr.length >= 4) {
                                         if (arr[3] === 6 || arr[3] === 7) hasB = true;
@@ -1390,90 +1325,135 @@
                             } catch (e) { }
                         }
 
-                        [stats[seg], stats['總計']].forEach(currStats => {
-                            // Always tally frequencies regardless of toggle
-                            if (isBuyBonus) {
-                                if (!currStats.buyBonusFreqs[row.betAmount]) {
-                                    currStats.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
-                                }
-                                currStats.buyBonusFreqs[row.betAmount].count++;
-                                currStats.buyBonusFreqs[row.betAmount].win += row.payout;
-
-                                const m = row.multiplier;
-                                globalBuyBonusMults.add(m);
-                                currStats.buyBonusFreqs[row.betAmount].multsCount[m] = (currStats.buyBonusFreqs[row.betAmount].multsCount[m] || 0) + 1;
-                            } else {
-                                if (currStats.betFreqs[row.betAmount] !== undefined) {
-                                    currStats.betFreqs[row.betAmount]++;
-                                } else {
-                                    currStats.betFreqs[row.betAmount] = 1;
-                                }
-                            }
-                        });
-
-                        if (!includeBuyBonus.value && isBuyBonus) return;
-
-                        [stats[seg], stats['總計']].forEach(currStats => {
-                            currStats.users.add(row.account);
-                            currStats.totalBetAmount += row.betAmount;
-                            currStats.totalWinAmount += row.payout;
-                            currStats.totalBets++;
-                            if (!isBuyBonus) {
-                                currStats.baseBets++;
-                                if (hasB) currStats.baseBonusHits++;
-                            }
-
-                            // 倍數
+                        if (isBuyBonus) {
+                            us.buyBonusCount++;
+                            if (!us.buyBonusFreqs[row.betAmount]) us.buyBonusFreqs[row.betAmount] = { count: 0, win: 0, multsCount: {} };
+                            us.buyBonusFreqs[row.betAmount].count++;
+                            us.buyBonusFreqs[row.betAmount].win += row.payout;
+                            
                             const m = row.multiplier;
-                            if (m === 0) currStats.multsCount['0x']++;
-                            else if (m <= 1) currStats.multsCount['0_1x']++;
-                            else if (m <= 10) currStats.multsCount['1_10x']++;
-                            else if (m <= 50) currStats.multsCount['10_50x']++;
-                            else currStats.multsCount['50x_plus']++;
+                            globalBuyBonusMults.add(m);
+                            us.buyBonusFreqs[row.betAmount].multsCount[m] = (us.buyBonusFreqs[row.betAmount].multsCount[m] || 0) + 1;
+                        } else {
+                            us.betFreqs[row.betAmount] = (us.betFreqs[row.betAmount] || 0) + 1;
+                            us.baseBets++;
+                            if (hasB) us.baseBonusHits++;
+                        }
 
-                            if (hasB) currStats.bonusHits++;
-                            if (hasR) currStats.respinHits++;
-                        });
+                        const m = row.multiplier;
+                        if (m === 0) us.multsCount['0x']++;
+                        else if (m <= 1) us.multsCount['0_1x']++;
+                        else if (m <= 10) us.multsCount['1_10x']++;
+                        else if (m <= 50) us.multsCount['10_50x']++;
+                        else us.multsCount['50x_plus']++;
 
-                        // 黏著度 (Sessions)
+                        if (hasB) us.bonusHits++;
+                        if (hasR) us.respinHits++;
+
                         if (!lastRow || lastRow.account !== row.account) {
-                            if (lastRow) {
-                                if (stats[segmentMap[lastRow.account]].currentSession) {
-                                    stats[segmentMap[lastRow.account]].sessions.push(stats[segmentMap[lastRow.account]].currentSession);
-                                }
-                                if (stats['總計'].currentSession) {
-                                    stats['總計'].sessions.push(stats['總計'].currentSession);
-                                }
+                            if (lastRow && userStats[lastRow.account].currentSession) {
+                                userStats[lastRow.account].sessions.push(userStats[lastRow.account].currentSession);
+                                userStats[lastRow.account].currentSession = null;
                             }
-                            [stats[seg], stats['總計']].forEach(currStats => {
-                                currStats.currentSession = { start: row.billTime, end: row.billTime, count: 1 };
-                            });
+                            us.currentSession = { start: row.billTime, end: row.billTime, count: 1 };
                         } else {
                             const diffMins = (row.billTime - lastRow.billTime) / 1000 / 60;
                             if (diffMins > 30) {
-                                [stats[seg], stats['總計']].forEach(currStats => {
-                                    currStats.sessions.push(currStats.currentSession);
-                                    currStats.currentSession = { start: row.billTime, end: row.billTime, count: 1 };
-                                });
+                                us.sessions.push(us.currentSession);
+                                us.currentSession = { start: row.billTime, end: row.billTime, count: 1 };
                             } else {
-                                [stats[seg], stats['總計']].forEach(currStats => {
-                                    currStats.currentSession.end = row.billTime;
-                                    currStats.currentSession.count++;
-                                });
+                                us.currentSession.end = row.billTime;
+                                us.currentSession.count++;
                             }
                         }
                         lastRow = row;
                     });
 
-                    if (lastRow) {
-                        if (stats[segmentMap[lastRow.account]].currentSession) {
-                            stats[segmentMap[lastRow.account]].sessions.push(stats[segmentMap[lastRow.account]].currentSession);
-                        }
-                        if (stats['總計'].currentSession) {
-                            stats['總計'].sessions.push(stats['總計'].currentSession);
-                        }
+                    if (lastRow && userStats[lastRow.account].currentSession) {
+                        userStats[lastRow.account].sessions.push(userStats[lastRow.account].currentSession);
+                        userStats[lastRow.account].currentSession = null;
                     }
 
+                    return { userStats, globalBuyBonusMults };
+                });
+
+                const analyzedData = computed(() => {
+                    if (!playerStatsMap.value) return null;
+                    const { userStats, globalBuyBonusMults } = playerStatsMap.value;
+
+                    const initStatsObj = () => ({
+                        users: new Set(),
+                        totalBetAmount: 0,
+                        totalWinAmount: 0,
+                        totalBets: 0,
+                        sessions: [],
+                        multsCount: { '0x': 0, '0_1x': 0, '1_10x': 0, '10_50x': 0, '50x_plus': 0 },
+                        bonusHits: 0,
+                        baseBonusHits: 0,
+                        baseBets: 0,
+                        respinHits: 0,
+                        betFreqs: { 1: 0, 5: 0, 10: 0, 50: 0, 100: 0, 500: 0, 1000: 0 },
+                        buyBonusFreqs: {} 
+                    });
+
+                    const stats = {
+                        '高價值玩家': initStatsObj(),
+                        '中階玩家': initStatsObj(),
+                        '休閒玩家': initStatsObj(),
+                        '總計': initStatsObj()
+                    };
+
+                    const allPlayers = [];
+
+                    Object.values(userStats).forEach(us => {
+                        const avgBet = us.bets > 0 ? (us.totalBetAmount / us.bets) : 0;
+                        let seg = '休閒玩家';
+                        if (avgBet >= highBetThreshold.value) seg = '高價值玩家';
+                        else if (avgBet >= midBetThreshold.value) seg = '中階玩家';
+
+                        [stats[seg], stats['總計']].forEach(s => {
+                            s.users.add(us.account);
+                            s.totalBetAmount += us.totalBetAmount;
+                            s.totalWinAmount += us.totalWinAmount;
+                            s.totalBets += us.bets;
+                            s.sessions.push(...us.sessions);
+
+                            s.bonusHits += us.bonusHits;
+                            s.baseBonusHits += us.baseBonusHits;
+                            s.baseBets += us.baseBets;
+                            s.respinHits += us.respinHits;
+
+                            for (const [k, v] of Object.entries(us.multsCount)) {
+                                s.multsCount[k] += v;
+                            }
+
+                            for (const [k, v] of Object.entries(us.betFreqs)) {
+                                s.betFreqs[k] = (s.betFreqs[k] || 0) + v;
+                            }
+
+                            for (const [amt, b] of Object.entries(us.buyBonusFreqs)) {
+                                if (b.count > 0) {
+                                    if (!s.buyBonusFreqs[amt]) s.buyBonusFreqs[amt] = { count: 0, win: 0, multsCount: {} };
+                                    s.buyBonusFreqs[amt].count += b.count;
+                                    s.buyBonusFreqs[amt].win += b.win;
+                                    for (const [m, c] of Object.entries(b.multsCount)) {
+                                        s.buyBonusFreqs[amt].multsCount[m] = (s.buyBonusFreqs[amt].multsCount[m] || 0) + c;
+                                    }
+                                }
+                            }
+                        });
+
+                        allPlayers.push({
+                            account: us.account,
+                            bets: us.bets,
+                            avgBet: avgBet,
+                            totalBetAmount: us.totalBetAmount,
+                            ggr: us.totalBetAmount - us.totalWinAmount,
+                            buyBonusCount: us.buyBonusCount
+                        });
+                    });
+
+                    allPlayers.sort((a, b) => b.ggr - a.ggr);
                     buyBonusMultiplierColumns.value = Array.from(globalBuyBonusMults).sort((a, b) => a - b);
 
                     // 4. 結算轉換
