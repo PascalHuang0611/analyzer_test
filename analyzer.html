@@ -1645,11 +1645,18 @@
                     }
 
                     // 5. Top 10 players 準備資料但不排序 (交由 filteredAndSortedPlayers 處理)
-                    let playersArr = Object.values(userStats).map(p => ({
-                        ...p,
-                        avgBet: p.bets > 0 ? p.totalBetAmount / p.bets : 0,
-                        ggr: p.totalBetAmount - p.totalWinAmount
-                    }));
+                    let playersArr = Object.values(userStats).map(p => {
+                        const avgBet = p.bets > 0 ? p.totalBetAmount / p.bets : 0;
+                        let seg = '休閒玩家';
+                        if (avgBet >= highBetThreshold.value) seg = '高價值玩家';
+                        else if (avgBet >= midBetThreshold.value) seg = '中階玩家';
+                        return {
+                            ...p,
+                            avgBet: avgBet,
+                            ggr: p.totalBetAmount - p.totalWinAmount,
+                            segment: seg
+                        };
+                    });
 
                     result.allPlayers = playersArr;
 
